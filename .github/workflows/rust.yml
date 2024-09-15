@@ -52,8 +52,8 @@ jobs:
 
       - name: Verify Build Output (Linux)
         run: |
-          if [ ! -f target/x86_64-unknown-linux-gnu/release/neit ]; then
-            echo "Build output not found: target/x86_64-unknown-linux-gnu/release/neit"
+          if [ ! -f target/x86_64-unknown-linux-gnu/release/Neit ]; then
+            echo "Build output not found: target/x86_64-unknown-linux-gnu/release/Neit"
             exit 1
           fi
 
