@@ -52,13 +52,13 @@ jobs:
 
       - name: Verify Build Output (Linux)
         run: |
-          if [ ! -f target/x86_64-unknown-linux-gnu/release/Neit ]; then
-            echo "Build output not found: target/x86_64-unknown-linux-gnu/release/Neit"
+          if [ ! -f target/x86_64-unknown-linux-gnu/release/neit ]; then
+            echo "Build output not found: target/x86_64-unknown-linux-gnu/release/neit"
             exit 1
           fi
 
       - name: Package for Release (Linux)
-        run: zip -r bimble_linux.zip target/x86_64-unknown-linux-gnu/release/neit
+        run: zip -r neit_linux.zip target/x86_64-unknown-linux-gnu/release/neit
 
       - name: Upload Artifact (Linux)
         uses: actions/upload-artifact@v3
