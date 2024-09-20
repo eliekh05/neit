@@ -234,9 +234,9 @@ jobs:
 
       - name: Upload Release Assets
         run: |
-          gh release upload ${{ needs.build-linux.outputs.new_version }}
-            ./downloads/neit_linux.zip
-            ./downloads/neit_windows.zip
+          gh release upload ${{ needs.build-linux.outputs.new_version }} \
+            ./downloads/neit_linux.zip \
+            ./downloads/neit_windows.zip \
             ./downloads/neit_macos.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
