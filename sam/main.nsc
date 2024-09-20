@@ -1,0 +1,4 @@
+_WRT("Hello world")
+fn hi(){
+    _WRT("hi")
+}
