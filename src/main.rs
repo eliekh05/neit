@@ -7,10 +7,15 @@ use std::{
 
 pub mod compilers;
 pub mod utils;
-use compilers::{compile::compile, genasm_lin::genasm_lin, genasm_win::genasm_win};
+use compilers::{
+    compile::{check_tools_installed, compile},
+    genasm_lin::genasm_lin,
+    genasm_win::genasm_win,
+};
 use utils::{fo::checkproj, token::gentoken};
 
 fn main() {
+    let _ = check_tools_installed();
     let args: Vec<String> = env::args().collect();
 
     // Ensure we have the required command and project path
@@ -114,6 +119,7 @@ fn build_project(proj: &str) {
     let code: Vec<&str> = main_content.lines().collect();
     match gentoken(code) {
         Ok(tokens) => {
+            //println!("tkns :\n{:?}", tokens);
             // Process each build target
             for target in build_targets {
                 // Generate assembly code based on the target
@@ -161,7 +167,7 @@ pub fn create_new_project(proj: &str) {
     }
 
     // Create main.nsc file
-    let main_file_content = r#"_WRT("Hello, world")"#;
+    let main_file_content = "println(\"Hello, world\")\n#The Neit Programming Language";
     let main_file_path = proj_path.join("main.nsc");
     if let Err(e) = fs::write(&main_file_path, main_file_content) {
         eprintln!("Error: Failed to create 'main.nsc' file: {}", e);

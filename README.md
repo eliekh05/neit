@@ -15,29 +15,36 @@
 ---
 
 ```neit
-_WRT("Hello world")
 
-# This will be replaced by std lib echoln
+#define functions with fn keyword
+fn hi() { #a local function
 
-fn hi() {
-    _WRT("hi")
 }
 
-hi()
+pub fn hey(){ #public function
 
-# Call the function
+}
 
-fn add(i: int, q: float) {}
-add(1, 2)
+print("Hello world") # print hello world without new line
 
-# Function with arguments
+println("Hello") # prints hello world with new line
 
-may name = "neit"
-may b = 9
-may z = 9.9
-may x = 90 + 80
+hey() #call fucntions
 
-# Only constant expressions for now
+may x = 0 # declarae variables (immutable for now) using may keyword
+
+may z = x-1 # supports mathematical operand like + , - , / , * , ** , // , %
+
+fn hello(){} # btw empty functions
+
+pub fn dem(){} # and empty public functions
+
+println("{z}") # print variables by putting them in {}
+
+println("{100**29}") # print supports maths aswell :3
+
+fn yo(x : int , y : string){} # functions can take arguments but they dont do anything for now :(
+
 ```
 
 ---
@@ -50,33 +57,62 @@ may x = 90 + 80
 
 ### Windows Installation
 
-Download and install the Windows MSVC compiler to get the linker. Follow the instructions from the official Microsoft site.
+Download and install LLVM for windows from : [llvm](https://github.com/llvm/llvm-project)
+along with the nasm assembler from : [nasm](https://www.nasm.us/)
 
 ### Linux Installation
 
 For Linux:
-Make sure you have NASM and the LD linker installed on your system. You can install them using your package manager:
+make sure you have nasm (netwide assembler installer on your system) along with the clang
 
 ```bash
 # for debian and ubuntu based
-sudo apt install nasm binutils
+sudo apt install nasm llvm
 
-# for fedora and its deriavatives / RHEL
-sudo dnf install nasm binutils
+# for fedora and its derivatives / RHEL
+sudo dnf install nasm llvm
 
 
 # for Arch and its deriavatives
-sudo pacman -S nasm binutils
+sudo pacman -S nasm llvm
 
 # opensuse
-sudo zypper install nasm binutils
+sudo zypper install nasm lvm
 
 
 # alpine linux
-sudo apk add nasm binutils
+sudo apk add nasm llvm
+
+#solus os
+sudo eopkg install nasm llvm
+
+#gentoo linux
+sudo emerge nasm llvm
+
+#slackware
+slackpkg install nasm llvm
+
+#for lfs
+wget https://www.nasm.us/pub/nasm/releasebuilds/nasm-X.XX.tar.gz
+tar -xzf nasm-X.XX.tar.gz
+cd nasm-X.XX
+./configure
+make
+sudo make install
+
+wget https://github.com/llvm/llvm-project/releases/download/llvmorg-X.XX.0/llvm-X.XX.0.src.tar.xz
+tar -xf llvm-X.XX.0.src.tar.xz
+cd llvm-X.XX.0.src
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+
+
 
 ```
 
 ---
 
-# This Project is under the **Apache License 2.0 with additional requirements so anyone who is going to fork this work is obliged to read the license thouroghly (its short dont worry)** here : [license](LICENSE)
+# This Project is under the **Apache License 2.0 so anyone who is going to fork this work is obliged to read the license thouroghly (its short dont worry)** here : [license](LICENSE)

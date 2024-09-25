@@ -13,14 +13,18 @@ pub fn gentoken(code: Vec<&str>) -> Result<Vec<Tokens>, String> {
     let mut p_label = 0;
     let mut fp_label = 364;
 
-    for ln in code {
+    for mut ln in code {
+        if let Some(pos) = ln.find('#') {
+            ln = &ln[..pos].trim();
+        }
         index += 1;
+        ln = ln.trim();
 
         if ln.is_empty() {
             continue;
         }
 
-        if (ln.trim().starts_with("pub fn") || ln.trim().starts_with("fn ")) && !ln.ends_with("}") {
+        if (ln.trim().starts_with("pub fn") || ln.trim().starts_with("fn ")) && ln.ends_with("{") {
             if in_function {
                 return Err(format!(
                     "Error at line {}: Unexpected function definition while inside another function.\n\
@@ -68,10 +72,10 @@ pub fn gentoken(code: Vec<&str>) -> Result<Vec<Tokens>, String> {
                     Err(e) => return Err(e),
                 }
             }
-        } else if ln.starts_with("may ") && ln.contains("=") {
-            let vr = process_var(ln);
+        } else if (ln.starts_with("may ") && !ln.starts_with("may whole ")) && ln.contains("=") {
+            let vr = process_var(ln, &tokens);
             match vr {
-                Ok(vr) => tokens.push(Tokens::Var(vr.0, vr.1)),
+                Ok(vr) => tokens.push(Tokens::Var(vr.0, vr.1, false)),
                 Err(e) => return Err(e),
             }
         } else if (ln.starts_with("fn ") || ln.starts_with("pub fn ")) && ln.ends_with("{}") {
@@ -79,9 +83,15 @@ pub fn gentoken(code: Vec<&str>) -> Result<Vec<Tokens>, String> {
                 Ok(f) => tokens.push(Tokens::Func(f)),
                 Err(e) => return Err(e),
             }
-        } else if ln.starts_with("_WRT(") && ln.ends_with(")") {
-            let txt = ln[5..].trim_end_matches(")");
-            let ptxt = process_print(&mut p_label, txt);
+        } else if ln.starts_with("print(") && ln.ends_with(")") {
+            let txt = ln[6..].trim_end_matches(")");
+            let ptxt = process_print(&mut p_label, txt, &tokens);
+            tokens.push(ptxt);
+        } else if ln.starts_with("println(") && ln.ends_with(")") {
+            let mut txt: String = ln[8..].trim_end_matches("\")").to_string();
+            //txt.trim_end_matches("\"");
+            txt.push_str(r#"\n""#);
+            let ptxt = process_print(&mut p_label, &txt, &tokens);
             tokens.push(ptxt);
         } else {
             let args: Vec<&str> = ln.trim().split('(').collect();

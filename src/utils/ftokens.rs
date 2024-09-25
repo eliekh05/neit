@@ -9,6 +9,7 @@ pub fn parse_single_line(
     line_number: usize,
     p_label: &mut i32,
     lv: &mut Vec<fvars>,
+    vars: Vec<Tokens>,
 ) -> Result<Tokens, String> {
     //let mut p_label = 0;
     let line = line.trim();
@@ -27,16 +28,23 @@ pub fn parse_single_line(
     }
 
     // Process print statements
-    if line.starts_with("_WRT(") && line.ends_with(")") {
+    if line.starts_with("print(") && line.ends_with(")") {
         let txt = line[5..].trim_end_matches(")");
         *p_label += *p_label + 365;
-        let print_token = process_print(p_label, txt);
+        let print_token = process_print(p_label, txt, &vars);
+        return Ok(print_token);
+    } else if line.starts_with("println(") && line.ends_with(")") {
+        let mut txt = line[5..].trim_end_matches("\")").to_string();
+        txt.push_str(r#"\n""#);
+        let txt = txt.as_str();
+        *p_label += *p_label + 365;
+        let print_token = process_print(p_label, txt, &vars);
         return Ok(print_token);
     } else if line.starts_with("may ") && line.contains("=") {
-        let vr = process_var(line);
+        let vr = process_var(line, &vars);
         match vr {
             Ok(vr) => {
-                return Ok(Tokens::Var(vr.0, vr.1));
+                return Ok(Tokens::Var(vr.0, vr.1, false));
             }
             Err(e) => return Err(e),
         }
