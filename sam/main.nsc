@@ -1,2 +1,6 @@
-may name = "joy"
-must i = 0
+fn a(){
+    may h = 0
+    h = h*100
+    println("h -> {h}")
+}
+a()

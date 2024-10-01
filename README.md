@@ -35,6 +35,11 @@ may x = 0 # declarae variables (immutable for now) using may keyword
 
 may z = x-1 # supports mathematical operand like + , - , / , * , ** , // , %
 
+must name = "joy" #declare constant variables
+
+may n = "a"
+n = "b" # change-able variable value can be re-defined
+
 fn hello(){} # btw empty functions
 
 pub fn dem(){} # and empty public functions
@@ -57,10 +62,15 @@ fn yo(x : int , y : string){} # functions can take arguments but they dont do an
 
 ### Windows Installation
 
-Download and install LLVM for windows from : [llvm](https://github.com/llvm/llvm-project)
-along with the nasm assembler from : [nasm](https://www.nasm.us/)
+Download and run the [**Neitset**](https://github.com/oxumlabs/neitset) program to auto install neit and set it on path
 
 ### Linux Installation
+
+---
+
+Neitset for linux works aswell but it isnt perfect tho you can try to use it at : [**Neitset**](https://github.com/oxumlabs/neitset)
+
+---
 
 For Linux:
 make sure you have nasm (netwide assembler installer on your system) along with the clang
