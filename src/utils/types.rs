@@ -1,10 +1,9 @@
 use super::maths::evaluate_expression;
 
-#[derive(Debug, Clone)]
-
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Tokens {
     Func(FN),
-    FnCall(String),          /*  String -> name of function */
+    FnCall(String, Vec<String>), /*  String -> name of function , Vec<String> -> Args */
     Print(String, String), /* String -> Text to print stored on | rax:1(sys_write) , rsi:text , rdx:size/len_of_text , rdi:1 (1 for stdout)*/
     Var(Vars, String, bool), /* Vars -> Variable Data | String -> Variable Name | bool -> is change-able*/
     Revar(String, String),   /* Name , Value */
@@ -14,20 +13,19 @@ pub fn get_vars(tokens: &Vec<fvars>) -> Vec<Vars> {
     for i in tokens {
         vrs.push(i.v.clone());
     }
-    return vrs;
+    vrs
 }
 pub fn get_vars_tkns(tokens: &Vec<Tokens>) -> Vec<Vars> {
     let mut vrs: Vec<Vars> = Vec::new();
     for i in tokens {
-        match i {
-            Tokens::Var(v, _, _) => vrs.push(v.clone()),
-            _ => {}
+        if let Tokens::Var(v, _, _) = i {
+            vrs.push(v.clone())
         }
     }
-    return vrs;
+    vrs
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 
 pub struct FN {
     pub name: String,
@@ -37,7 +35,7 @@ pub struct FN {
     pub local_vars: Vec<fvars>,
     /* variable system */
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[allow(non_camel_case_types)]
 pub struct fvars {
     pub v: Vars,
@@ -45,7 +43,7 @@ pub struct fvars {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 
 pub enum Args /* type(name_of_arg)*/ {
     Str(String),
@@ -87,7 +85,7 @@ impl FN {
     }
 }
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Vars {
     STR(String),
     INT(i64),
@@ -95,6 +93,12 @@ pub enum Vars {
     EX(String),
 }
 #[allow(dead_code)]
+
+impl Default for Vars {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Vars {
     pub fn to_asm(&self, name: String, counter: i32) -> String {
@@ -149,15 +153,15 @@ impl Vars {
                         Err(_) => return Err("Error: Unable to parse value as integer".to_string()),
                     }
                 }
-                return Ok(self.clone());
+                Ok(self.clone())
             }
 
             Err(e) => {
-                return Err(format!(
+                Err(format!(
                 "✘ Error: Value '{}' could not be parsed as a valid type.\n\
                 Hint: Ensure the value is in a valid format for string (\"string\"), integer (123), float (123.45), or expression (e.g., a+b).\nERROR: {}",
                 value,e
-            ));
+            ))
             }
         }
 

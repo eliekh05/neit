@@ -30,36 +30,25 @@ pub fn process_print(num: &mut i32, text: &str, vars: &Vec<Tokens>) -> Tokens {
             }
             '}' if is_var => {
                 open_brace_count -= 1;
-                println!(
-                    "current var : {} | open brace count : {}",
-                    current_var, open_brace_count
-                );
 
                 if open_brace_count == 0 {
                     let mut var_found = false;
-                    // We are not evaluating the expression, just identifying the type and name
-                    println!("vars : {:?}", vars);
                     for v in vars.clone() {
-                        println!("v : {:?}", v);
-                        match v {
-                            Tokens::Var(v, n, _) => {
-                                println!("CURRENT VAR : {} | n : {}", current_var, n);
-                                if current_var == n {
-                                    var_found = true;
-                                    // Generate the custom notation based on the variable type
-                                    match v {
-                                        Vars::STR(_) => result_text.push_str(&format!("|{}~s|", n)),
-                                        Vars::INT(_) => result_text.push_str(&format!("|{}~d|", n)),
-                                        Vars::F(_) => result_text.push_str(&format!("|{}~f|", n)),
-                                        _ => {}
-                                    }
-                                    current_var.clear();
-                                    is_var = false;
-                                    expression_mode = false;
-                                    break;
+                        if let Tokens::Var(v, n, _) = v {
+                            if current_var == n {
+                                var_found = true;
+                                // Generate the custom notation based on the variable type
+                                match v {
+                                    Vars::STR(_) => result_text.push_str(&format!("|{}~s|", n)),
+                                    Vars::INT(_) => result_text.push_str(&format!("|{}~d|", n)),
+                                    Vars::F(_) => result_text.push_str(&format!("|{}~f|", n)),
+                                    _ => {}
                                 }
+                                current_var.clear();
+                                is_var = false;
+                                expression_mode = false;
+                                break;
                             }
-                            _ => {}
                         }
                     }
 
@@ -89,11 +78,10 @@ pub fn process_print(num: &mut i32, text: &str, vars: &Vec<Tokens>) -> Tokens {
     if !current_var.is_empty() {
         result_text.push_str(&current_var);
     }
-    println!("result text : {}\n", result_text);
     Tokens::Print(result_text, format!("p{}", num))
 }
 
-pub fn p_to_c(text: &str, vars: &Vec<Tokens>) -> String {
+pub fn p_to_c(text: &str, _vars: &Vec<Tokens>) -> String {
     let mut c_code = String::new();
     c_code.push('\"');
     let mut collected_vars = Vec::new();
