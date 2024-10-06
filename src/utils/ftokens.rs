@@ -1,6 +1,6 @@
 use super::{
     maths::evaluate_expression,
-    tokens::{print::process_print, var::process_var},
+    tokens::{input::process_input, print::process_print, var::process_var},
     types::{fvars, Args, Tokens},
 };
 
@@ -21,9 +21,10 @@ pub fn parse_single_line(
     // Return an error if a function declaration is encountered.
     if line.starts_with("fn ") || line.starts_with("pub fn") {
         return Err(format!(
-            "Error at line {}: Function declarations are not allowed here.\n\
-                Hint: Function declarations should not be placed in this context.\n\
-                Code:\n   => {}",
+            "✘ Whoa there! Looks like you tried to declare a function at line {}—and that's a big no-no!\n\
+            → Reason: Functions are a bit picky and don’t like to be placed here (inside another function!!! Can you imagine?).\n\
+            →→ Hint: Try moving them to a more suitable spot!\n\
+            Code:\n   => {}",
             line_number, line
         ));
     }
@@ -32,7 +33,6 @@ pub fn parse_single_line(
     if line.starts_with("print(") && line.ends_with(")") {
         let txt = line[6..].trim_end_matches(")");
         *p_label += 365;
-        println!("vars at ln 35 ftokens.rs : {:?}", vars);
         let print_token = process_print(p_label, txt, vars);
         return Ok(print_token);
     } else if line.starts_with("println(") && line.ends_with(")") {
@@ -40,9 +40,16 @@ pub fn parse_single_line(
         txt.push_str(r#"\n""#);
         let txt = txt.as_str();
         *p_label += 365;
-        println!("vars at ln 42 ftokens.rs : {:?}", vars);
         let print_token = process_print(p_label, txt, vars);
         return Ok(print_token);
+    } else if line.starts_with("takein(") {
+        let tkn = process_input(&line, &vars);
+        match tkn {
+            Ok(tkn) => {
+                vars.push(tkn);
+            }
+            Err(e) => return Err(e),
+        }
     } else if line.starts_with("may ") && line.contains("=") {
         let vr = process_var(line, vars, false);
         match vr {
@@ -124,9 +131,11 @@ pub fn parse_single_line(
 
         if provided_args.len() != expected_args.len() {
             return Err(format!(
-                "Error at line {}: Function '{}' called with incorrect number of arguments.\n\
-                    Hint: Expected {} arguments but got {}.\n\
-                    Code:\n   => {}",
+                "✘ Uh-oh at line {}! It seems the function '{}' was called with the wrong number of arguments!\n\
+                → Reason: I expected {} arguments, but you only gave me {}!\n\
+                →→ Hint: Let’s make sure they match up!\n\
+                Code:\n   => {}\n\
+                Remember, every function loves to have its correct number of arguments—let's keep it happy!",
                 line_number,
                 nm,
                 expected_args.len(),
@@ -140,9 +149,10 @@ pub fn parse_single_line(
                 Ok(t) => t,
                 Err(e) => {
                     return Err(format!(
-                        "Error at line {}: Argument '{}' could not be parsed. {}\n\
-                            Hint: Ensure arguments are of correct type.\n\
-                            Code:\n   => {}",
+                        "🚨 Uh-oh! At line {}, I couldn't make sense of the argument '{}'—it just doesn’t compute!\n\
+                        {} \n\
+                        →→ Hint: Double-check that your arguments are of the right type—let’s keep everything in harmony!\n\
+                        Code:\n   => {}",
                         line_number, provided, e, line
                     ));
                 }
@@ -157,9 +167,10 @@ pub fn parse_single_line(
 
             if provided_type != expected_type {
                 return Err(format!(
-                    "Error at line {}: Argument type mismatch in function call '{}'.\n\
-                        Hint: Expected argument type '{}' but got '{}'.\n\
-                        Code:\n   => {}",
+                    "✘ Whoopsie! At line {}, there’s a mix-up with the argument in the function call '{}'.\n\
+                    → Reason: I was expecting a '{}' but got a '{}' instead!\n\
+                    →→ Hint: Let’s get our types in sync!\n\
+                    Code:\n   => {}",
                     line_number, nm, expected_type, provided_type, line
                 ));
             }
@@ -169,9 +180,10 @@ pub fn parse_single_line(
     }
 
     Err(format!(
-        "Error at line {}: Could not parse the provided line.\n\
-            Hint: Ensure the code syntax is correct.\n\
-            Code:\n   => {}",
+        "✘ Yikes! At line {}, I couldn’t parse the provided line—it’s a bit jumbled!\n\
+        → Reason: Let’s make sure the code syntax is spot on!\n\
+        →→ Hint: Remember, a clean code line is a happy code line! Let’s tidy it up!\n\
+        Code:\n   => {}",
         line_number, line
     ))
 }

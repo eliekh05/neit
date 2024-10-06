@@ -1,4 +1,4 @@
-use crate::utils::types::{Args, Tokens};
+use crate::utils::types::{Args, Tokens, Vars};
 use std::collections::HashSet;
 
 pub fn genasm_win(tokens: &Vec<Tokens>) -> String {
@@ -11,12 +11,13 @@ pub fn genasm_win(tokens: &Vec<Tokens>) -> String {
     let mut added_data: HashSet<String> = HashSet::new();
 
     // Data segment declaration
-    data.push_str("segment .data\n");
+    data.push_str("section .data\n");
+
     // Text segment declaration
-    code.push_str("segment .text\n");
+    code.push_str("section .text\n");
     code.push_str("global main\n");
+    code.push_str("extern printf\n"); // Declare printf
     code.push_str("extern ExitProcess\n");
-    code.push_str("extern printf\n");
 
     // Main function start
     code.push_str("main:\n");
@@ -26,6 +27,70 @@ pub fn genasm_win(tokens: &Vec<Tokens>) -> String {
 
     for token in tokens.clone() {
         match token {
+            Tokens::Var(var, name, _) => {
+                let vasm = var.to_asm(name, counter);
+                data.push_str(vasm.as_str());
+            }
+
+            Tokens::Print(txt, name) => {
+                let processed_text = txt.clone();
+                let data_key = format!("{}_{}", name, counter);
+
+                // Check if the data key already exists to avoid duplicate string definitions
+                if !added_data.contains(&data_key) {
+                    let asm_string = processed_text.clone().replace("\n", "\\n"); // Handle newlines for assembly
+                    data.push_str(&format!("    {} db '{}', 0\n", data_key, asm_string));
+                    added_data.insert(data_key.clone());
+                }
+
+                // Prepare the code for printing the string using printf
+                let print_code = format!("    lea rdi, [{}]\n", data_key); // Load string address
+                let len_code = format!("    mov rax, 0\n"); // Clear rax before calling printf
+                code.push_str(&print_code);
+                code.push_str(&len_code);
+                code.push_str("    call printf\n"); // Call printf
+            }
+
+            Tokens::FnCall(nm, args) => {
+                let mut call_code = String::new();
+                // Generate argument passing code
+                for (i, _arg) in args.iter().enumerate() {
+                    for tkns in tokens {
+                        match tkns {
+                            Tokens::Var(v, n, _) => {
+                                if *n == nm {
+                                    match v {
+                                        Vars::STR(_) => call_code.push_str("    lea rdi, [msg]\n"),
+                                        Vars::F(_) => {
+                                            call_code.push_str("    movaps xmm0, [arg_float]\n");
+                                        }
+                                        Vars::INT(_) => {
+                                            let reg = match i {
+                                                0 => "rdi",
+                                                1 => "rsi",
+                                                2 => "rdx",
+                                                3 => "rcx",
+                                                _ => "rax",
+                                            };
+                                            call_code.push_str(&format!("    mov {}, 0\n", reg));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                call_code.push_str(&format!("    call {}\n", nm));
+                code.push_str(&call_code);
+            }
+
+            Tokens::Revar(n, v) => {
+                code.push_str(&format!("    mov [{}], {}\n", n, v));
+            }
+
             Tokens::Func(ref func) => {
                 let mut func_code = String::new();
                 let has_vars = !func.local_vars.is_empty();
@@ -35,79 +100,12 @@ pub fn genasm_win(tokens: &Vec<Tokens>) -> String {
                 func_code.push_str("    mov     rbp, rsp\n");
                 func_code.push_str("    sub     rsp, 32\n");
 
-                for (i, arg) in func.args.iter().enumerate() {
-                    match arg {
-                        Args::Str(_) => {
-                            if i == 0 {
-                                func_code.push_str("    ; String argument in rcx\n");
-                            }
-                        }
-                        Args::Float(_) => {
-                            if i == 0 {
-                                func_code.push_str("    ; Floating-point argument in xmm0\n");
-                            }
-                        }
-                        Args::Int(_) => {
-                            let reg = match i {
-                                0 => "rcx",
-                                1 => "rdx",
-                                2 => "r8",
-                                3 => "r9",
-                                _ => "rax",
-                            };
-                            func_code.push_str(&format!("    mov {}, 0\n", reg));
-                        }
-                        _ => {}
-                    }
-                }
-
                 functions.push((func.name.clone(), func_code, func.code.clone(), has_vars));
             }
-            Tokens::FnCall(ref nm, _args) => {
-                let mut call_code = String::new();
-                let args = get_function_args(nm, tokens);
 
-                for (i, arg) in args.iter().enumerate() {
-                    match arg {
-                        Args::Str(_) => {
-                            call_code.push_str("    lea rcx, [msg]\n"); // Load address of msg
-                        }
-                        Args::Float(_) => {
-                            if i == 0 {
-                                call_code.push_str("    movaps xmm0, [arg_float]\n");
-                            }
-                        }
-                        Args::Int(_) => {
-                            let reg = match i {
-                                0 => "rcx",
-                                1 => "rdx",
-                                2 => "r8",
-                                3 => "r9",
-                                _ => "rax",
-                            };
-                            call_code.push_str(&format!("    mov {}, 0\n", reg));
-                        }
-                        _ => {}
-                    }
-                }
-
-                call_code.push_str(&format!("    call {}\n", nm));
-                code.push_str(&call_code);
-            }
-            _ => {
-                parse(
-                    &mut code.clone(),
-                    &mut code,
-                    false,
-                    token,
-                    tokens,
-                    &mut data,
-                    counter,
-                    &mut added_data,
-                );
-                counter += 5;
-            }
+            _ => {}
         }
+        counter += 1;
     }
 
     let mut final_functions: Vec<(String, String)> = Vec::new();
@@ -166,19 +164,18 @@ fn parse(
             let processed_text = txt;
             let data_key = format!("{}_{}", name, counter);
             if !added_data.contains(&data_key) {
-                let asm_string = processed_text.replace("\\n", "\", 0xd, 0xa, \"");
+                let asm_string = processed_text.clone();
+                println!("asm string : {}", asm_string);
                 data.push_str(&format!("    {} db '{}', 0\n", data_key, asm_string));
                 added_data.insert(data_key.clone());
             }
 
             // Prepare the code for printing the string using printf
-            let print_code = format!("    lea rcx, [{}]\n    call printf\n", data_key);
-
-            if inf {
-                fnbody.push_str(&print_code);
-            } else {
-                code.push_str(&print_code);
-            }
+            let print_code = format!("    lea rdi, [{}]\n", data_key);
+            let len_code = format!("    mov rax, 0\n");
+            fnbody.push_str(&print_code);
+            fnbody.push_str(&len_code);
+            fnbody.push_str("    call printf\n"); // Call printf
         }
         Tokens::FnCall(nm, _args) => {
             let mut call_code = String::new();
@@ -187,7 +184,7 @@ fn parse(
             for (i, arg) in args.iter().enumerate() {
                 match arg {
                     Args::Str(_) => {
-                        call_code.push_str("    lea rcx, [msg]\n");
+                        call_code.push_str("    lea rdi, [msg]\n");
                     }
                     Args::Float(_) => {
                         if i == 0 {
@@ -196,10 +193,10 @@ fn parse(
                     }
                     Args::Int(_) => {
                         let reg = match i {
-                            0 => "rcx",
-                            1 => "rdx",
-                            2 => "r8",
-                            3 => "r9",
+                            0 => "rdi",
+                            1 => "rsi",
+                            2 => "rdx",
+                            3 => "rcx",
                             _ => "rax",
                         };
                         call_code.push_str(&format!("    mov {}, 0\n", reg));

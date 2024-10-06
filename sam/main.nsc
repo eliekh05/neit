@@ -1,4 +1,10 @@
-may z = 0.1212
-println("{z}")
-z = 19280.89123
-println("{z}")
+may z = ""
+
+
+case admin{
+    print("{z}")
+}
+
+case adminn{
+    print("{z}")
+}

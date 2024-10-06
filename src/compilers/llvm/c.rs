@@ -5,9 +5,50 @@ use crate::utils::{
 use std::collections::HashSet;
 
 pub fn to_c(tokens: &Vec<Tokens>) -> String {
-    let imports = String::from("#include <stdio.h>\n\n");
+    let imports = String::from("#include <stdio.h>\n#include <string.h>\n");
     let mut main = String::new();
     let mut funs = String::new();
+
+    funs.push_str(
+        r#"int fdi(int a, int b) {
+    if (b == 0) {
+        // ✘ Error: Division by zero
+        // → Hint: Handle error (e.g., return 0 or some error code)
+        return 0;
+    }
+    int result = a / b;
+    // ℹ Info: Adjust result if a and b have different signs and there's a remainder
+    if ((a % b != 0) && ((a < 0) != (b < 0))) {
+        result--;
+    }
+    return result;
+}
+
+"#,
+    );
+
+    // Define floor division for floats
+    funs.push_str(
+        r#"double fdf(double a, double b) {
+    
+    if (b == 0.0) {
+        // ✘ Error: Division by zero in float
+        return 0.0;
+    }
+    
+    double result = a / b;
+    if (result > 0 && result != (int)result) {
+        return (int)result; // ℹ Info: Truncates towards zero
+    }
+    if (result < 0 && result != (int)result) {
+        return (int)result - 1;
+    }
+    
+    return result;
+}
+
+"#,
+    );
 
     // Set to track declared variables in order to avoid redeclarations
     let mut declared_vars: HashSet<String> = HashSet::new();
@@ -22,18 +63,21 @@ pub fn to_c(tokens: &Vec<Tokens>) -> String {
                     Args::Str(name) => name.clone(),
                     Args::Int(name) => name.clone(),
                     Args::Float(name) => name.clone(),
-                    _ => unreachable!(),
+                    _ => unreachable!(
+                        "✘ Error: Unsupported argument type. ⚙ Location: to_c make_args"
+                    ),
                 })
                 .collect();
 
             // Generate C function header
             let s = format!("void {}({}) {{\n", fun.name, make_args(&fun.args));
             funs.push_str(&s);
-            println!("funcs : {}\nfuns token : {:?}", funs, fun.code);
+
             // Process function code (function body)
             process(&mut funs, &arg_vars, true, &fun.code, &mut declared_vars);
-            println!("funs after processing : {}", funs);
-            funs.push_str("\n}\n\n"); // Close the function definition
+
+            // Close the function definition
+            funs.push_str("\n}\n\n");
         }
     }
 
@@ -74,21 +118,28 @@ fn process(
     for token in tokens {
         match token {
             Tokens::Print(v, _n) => {
-                // Always add the print statement to allow duplicates
+                //println!("v : {} |", v);
                 let pc = p_to_c(v, tokens);
                 let pc = format!("    printf({});\n", pc); // Add a newline after printf
                 func.push_str(&pc);
+            }
+            Tokens::In(vnm) => {
+                func.push_str(&format!(
+                    "//printf(\"\\n\");\nfgets({}, sizeof({}) - 1, stdin);\n",
+                    vnm, vnm
+                ));
+                func.push_str(&format!(
+                    "char *newline = strchr({}, '\\n');\nif (newline) *newline = '\\0';\n",
+                    vnm
+                ));
             }
             Tokens::FnCall(fc, args) => {
                 func.push_str(&format!("    {}({});\n", fc, args.join(",")));
             }
             Tokens::Var(v, n, mutable) => {
-                // Skip redeclaring function arguments
                 if arg_vars.contains(n) {
                     continue;
                 }
-
-                // Check if the variable has already been declared
                 if declared_vars.contains(n) {
                     continue; // Skip if already declared
                 }
@@ -97,22 +148,23 @@ fn process(
                 declared_vars.insert(n.clone());
 
                 // Generate variable declaration based on type and mutability
-                let var_declaration = if !mutable {
-                    //println!("mutable var_declr (101 c.rs) => {:?}", v);
+                let var_declaration = if *mutable {
                     match v {
-                        Vars::STR(s) => format!("char *{} = \"{}\";\n", n, s),
+                        Vars::STR(s) => format!("char {}[{}] = \"{}\";\n", n, n.len() + 3333, s),
                         Vars::INT(s) => format!("int {} = {};\n", n, s),
                         Vars::F(f) => format!("double {} = {};\n", n, f),
-                        _ => String::new(),
+                        _ => unreachable!(
+                            "✘ Error: Unsupported variable type. ⚙ Location: process mutable"
+                        ),
                     }
                 } else {
-                    // Immutable variables should be declared as 'const'
-                    //println!("immutable var_declr (101 c.rs) => {:?}", v);
                     match v {
                         Vars::STR(s) => format!("const char *{} = \"{}\";\n", n, s),
                         Vars::INT(s) => format!("const int {} = {};\n", n, s),
                         Vars::F(f) => format!("const double {} = {};\n", n, f),
-                        _ => String::new(),
+                        _ => unreachable!(
+                            "✘ Error: Unsupported variable type. ⚙ Location: process immutable"
+                        ),
                     }
                 };
 

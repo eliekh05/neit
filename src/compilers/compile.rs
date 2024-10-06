@@ -8,19 +8,19 @@ use std::{
 pub fn compile(asm: &String, proj: &str, target: &str, project_name: &str) {
     println!("Target at Compile (9) : {}", target);
 
-    //let _cti = check_tools_installed().is_ok();
-
     let build_dir = Path::new(proj).join("build");
     if !build_dir.exists() {
-        fs::create_dir_all(&build_dir).expect("Failed to create build directory");
+        fs::create_dir_all(&build_dir).expect("✘ Yikes! Failed to create build directory.");
     }
 
     let output_file = match target {
-        "linux" => build_dir.join(project_name),
-        "windows" => build_dir.join(format!("{}.exe", project_name)),
+        "linux" | "lin_asm" => build_dir.join(project_name),
+        "windows" | "win_asm" => build_dir.join(format!("{}.exe", project_name)),
         "C" => build_dir.join(format!("{}.c", project_name)),
         _ => {
-            eprintln!("Error: Unsupported build target '{}'.", target);
+            eprintln!("✘ Unsupported build target '{}'.", target);
+            eprintln!("→ Hint: Check the target options.");
+            eprintln!("⚙ [Location: compile function]");
             exit(1);
         }
     };
@@ -29,92 +29,108 @@ pub fn compile(asm: &String, proj: &str, target: &str, project_name: &str) {
     match File::create(asm_file_path) {
         Ok(mut asmf) => match asmf.write_all(asm.as_bytes()) {
             Ok(_) => {
+                // Platform-specific compilation logic
                 match target {
-                    "linux" => {
-                        let nasm_args = vec!["-f", "elf64", "-o", "temp.o", asm_file_path];
-                        let status = Command::new("nasm")
-                            .args(nasm_args)
-                            .stdout(std::process::Stdio::null()) // Suppress output
-                            .stderr(std::process::Stdio::null()) // Suppress error output
-                            .status()
-                            .expect("Failed to execute `nasm` command");
+                    // Linux Assembly Compilation
+                    "linux" | "lin_asm" => compile_linux(&asm_file_path, &output_file),
 
-                        if !status.success() {
-                            eprintln!("Error: Assembly for Linux failed");
-                        } else {
-                            let status = Command::new("clang")
-                                .arg("-o")
-                                .arg(&output_file)
-                                .arg("temp.o")
-                                .arg("-nostdlib")
-                                .arg("-Wl,--no-relax") // Optional: suppress warnings
-                                .stdout(std::process::Stdio::null()) // Suppress output
-                                .stderr(std::process::Stdio::null()) // Suppress error output
-                                .status()
-                                .expect("Failed to execute `clang` command");
+                    // Windows Assembly Compilation
+                    "windows" | "win_asm" => compile_windows(&asm_file_path, &output_file),
 
-                            if !status.success() {
-                                eprintln!("Error: Linking for Linux failed");
-                            } else {
-                                println!("Successfully built for {}: {:?}", target, output_file);
-                            }
-                        }
-                    }
-                    "windows" => {
-                        let nasm_args = vec!["-f", "win64", "-o", "temp.obj", asm_file_path];
-                        let status = Command::new("nasm")
-                            .args(nasm_args)
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::null())
-                            .status()
-                            .expect("Failed to execute `nasm` command");
-
-                        if !status.success() {
-                            eprintln!("Error: Assembly for Windows failed");
-                        } else {
-                            let status = Command::new("clang")
-                                .arg("-o")
-                                .arg(&output_file)
-                                .arg("temp.obj")
-                                .arg("-nostdlib")
-                                .arg("-Wl,--no-relax") // Optional: suppress warnings
-                                .stdout(std::process::Stdio::null()) // Suppress output
-                                .stderr(std::process::Stdio::null()) // Suppress error output
-                                .status()
-                                .expect("Failed to execute `clang` command");
-
-                            if !status.success() {
-                                eprintln!("Error: Linking for Windows failed");
-                            } else {
-                                println!("Successfully built for {}: {:?}", target, output_file);
-                            }
-                        }
-                    }
                     _ => {
-                        eprintln!("Error: Unsupported target '{}'.", target);
+                        eprintln!("✘ Unsupported target '{}'.", target);
+                        eprintln!("→ Hint: Check the target options.");
+                        eprintln!("⚙ [Location: compile function]");
                         exit(1);
                     }
                 }
 
-                // Clean up temporary files
+                //Clean up temporary files
                 fs::remove_file(asm_file_path).expect("Failed to delete temporary ASM file");
                 if target == "linux" {
                     fs::remove_file("temp.o").expect("Failed to delete temporary object file");
                 } else if target == "windows" {
                     fs::remove_file("temp.obj").expect("Failed to delete temporary object file");
                 }
-
-                // Do not exit after successful build
             }
             Err(_) => {
-                eprintln!("Error: Unable to write assembly code to file\nHint: Ensure correct permissions");
+                eprintln!("✘ Unable to write assembly code to file.");
+                eprintln!("→ Hint: Ensure correct permissions.");
+                eprintln!("⚙ [Location: compile function]");
                 exit(1);
             }
         },
         Err(_) => {
-            eprintln!("Error: Unable to create assembly file\nHint: Ensure correct permissions");
+            eprintln!("✘ Unable to create assembly file.");
+            eprintln!("→ Hint: Ensure correct permissions.");
+            eprintln!("⚙ [Location: compile function]");
             exit(1);
         }
+    }
+}
+
+fn compile_linux(asm_file_path: &str, output_file: &Path) {
+    let nasm_args = vec!["-f", "elf64", "-o", "temp.o", asm_file_path];
+    let status = Command::new("nasm")
+        .args(nasm_args)
+        .status()
+        .expect("✘ Failed to execute `nasm` command");
+
+    if !status.success() {
+        eprintln!("✘ Assembly for Linux failed.");
+        eprintln!("→ Hint: Check NASM installation and syntax.");
+        eprintln!("⚙ [Location: compile_linux function]");
+        return;
+    }
+
+    let status = Command::new("clang")
+        .arg("-o")
+        .arg(output_file)
+        .arg("temp.o")
+        .arg("-nostdlib")
+        .status()
+        .expect("✘ Failed to execute `clang` command");
+
+    if !status.success() {
+        eprintln!("✘ Linking for Linux failed.");
+        eprintln!("→ Hint: Ensure Clang is correctly set up.");
+        eprintln!("⚙ [Location: compile_linux function]");
+    } else {
+        println!("Successfully built for Linux: {:?}", output_file);
+    }
+}
+
+fn compile_windows(asm_file_path: &str, output_file: &Path) {
+    let nasm_args = vec!["-f", "win64", "-o", "temp.obj", asm_file_path];
+    let status = Command::new("nasm")
+        .args(nasm_args)
+        .status()
+        .expect("✘ Failed to execute `nasm` command");
+
+    if !status.success() {
+        eprintln!("✘ Assembly for Windows failed.");
+        eprintln!("→ Hint: Check NASM installation and syntax.");
+        eprintln!("⚙ [Location: compile_windows function]");
+        return; // Exit early if assembly fails
+    }
+
+    let status = Command::new("clang")
+        .arg("-o")
+        .arg(output_file)
+        .arg("temp.obj")
+        .arg("-static")
+        .arg("-lkernel32")
+        .arg("-Wl,/ENTRY:main") // Set entry point to `main`
+        .arg("-Wl,/LARGEADDRESSAWARE:NO")
+        .status()
+        .expect("✘ Failed to execute `clang` command");
+
+    if !status.success() {
+        eprintln!("✘ Linking for Windows failed.");
+        eprintln!("→ Hint: Ensure Clang is correctly set up.");
+        eprintln!("⚙ [Location: compile_windows function]");
+    } else {
+        println!("Successfully built for Windows: {:?}", output_file);
     }
 }
 
@@ -135,51 +151,30 @@ fn is_tool_installed(tool: &str) -> bool {
 fn prompt_install(tool: &str) -> io::Result<()> {
     let os_type = std::env::consts::OS;
 
-    println!("Error: {} is not installed.", tool);
+    println!("✘ {} has been hidding pretty well ,  I am not able to find it\nCan you make sure It is installed and on system path?", tool);
 
     if tool == "nasm" {
         if os_type == "windows" {
-            println!("To install nasm on Windows, visit:");
-            println!("  https://www.nasm.us/pub/nasm/releasebuilds/");
-            println!("Scroll to the bottom and find the folder from the last release that doesn't contain 'rc*'.");
-            println!("Go into that folder and download the Windows installer for nasm.");
-            println!("Once downloaded, run the installer to install nasm.");
-            println!("\n\n*PRESS ENTER TO EXIT**");
-            let mut i = String::new();
-            stdin().read_line(&mut i).unwrap();
+            println!(
+                "→ Hint: To install NASM on Windows, visit: https://www.nasm.us/pub/nasm/releasebuilds/"
+            );
         } else if os_type == "linux" {
-            println!("To install nasm on Linux, please look up how to install nasm for your distribution.");
-            println!("Common commands are:");
-            println!("  - For Ubuntu/Debian: sudo apt install nasm");
-            println!("  - For Fedora: sudo dnf install nasm");
-            println!("  - For Arch: sudo pacman -S nasm");
-            println!("More installation commands can be found at : https://github.com/OxumLabs/neit?tab=readme-ov-file#linux-installation");
-
-            println!("\n\n*PRESS ENTER TO EXIT**");
-            let mut i = String::new();
-            stdin().read_line(&mut i).unwrap();
+            println!("→ Hint: For Linux: sudo apt install nasm (for Ubuntu/Debian) or similar for other distros.");
         }
     } else if tool == "clang" {
         if os_type == "windows" {
-            println!("To install clang on Windows, follow these steps:");
-            println!("1. Go to the release page: https://github.com/llvm/llvm-project/releases");
-            println!("2. Download the latest LLVM installer for Win64 (look for a file named something like LLVM-19.1.0-win64.exe; the version number may differ).");
-            println!("3. Run the installer and follow the setup instructions to complete the installation.");
-
-            println!("\n\n*PRESS ENTER TO EXIT**");
-            let mut i = String::new();
-            stdin().read_line(&mut i).unwrap();
+            println!(
+                "→ Hint: To install Clang on Windows, visit: https://github.com/llvm/llvm-project/releases"
+            );
         } else if os_type == "linux" {
-            println!("To install clang on Linux, please look up how to install clang for your distribution.");
-            println!("Common commands are:");
-            println!("  - For Ubuntu/Debian: sudo apt install clang");
-            println!("  - For Fedora: sudo dnf install clang");
-            println!("  - For Arch: sudo pacman -S clang");
-
-            println!("\n\n*PRESS ENTER TO EXIT**");
-            let mut i = String::new();
-            stdin().read_line(&mut i).unwrap();
+            println!(
+                "→ Hint: For Linux: sudo apt install clang lld (for Ubuntu/Debian) or similar."
+            );
         }
     }
-    Ok(())
+
+    println!("\nPress ENTER to exit.");
+    let mut i = String::new();
+    stdin().read_line(&mut i).unwrap();
+    exit(1);
 }
