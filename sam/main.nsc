@@ -1,10 +1,5 @@
-may z = ""
-
-
-case admin{
-    print("{z}")
-}
-
-case adminn{
-    print("{z}")
+fn hi(name : string){
+    case hi{
+        println("hi {name}")
+    }
 }

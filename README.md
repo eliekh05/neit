@@ -1,128 +1,63 @@
-<div style="text-align:center">
-<img src="logo.png" width="80px">
-<h2 style="font-size: 45px; color: #4CAF50; text-align: center; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);">
-    Neit Programming Language
-</h2>
+<div align="center">
+    <img src="logo.png" alt="Logo" style="width: 40%;" />
+</div>
 
-<p style="font-size: 30px; color: #f 0f0f0; background-color: #1a1a1a; padding: 20px; border-radius: 10px; line-height: 1.6; text-align: center;">
-    The Neit Programming Language is a modern general-use programming language designed to be very easy by design and fast for production. It builds executables that are libc dependency-free, making the final build extremely lightweight and fast. We utilize the LLVM compiler (work in progress for now; ASM is our go-to). Some simple code in Neit is shown below.
-</p>
+<div align="center">
+</div>
 
-## </div>
+<div align="center">
 
-## Code Example
+# Your Neit Programming Language
 
----
+</div>
 
-```neit
-
-#define functions with fn keyword
-fn hi() { #a local function
-
-}
-
-pub fn hey(){ #public function
-
-}
-
-print("Hello world") # print hello world without new line
-
-println("Hello") # prints hello world with new line
-
-hey() #call fucntions
-
-may x = 0 # declarae variables (immutable for now) using may keyword
-
-may z = x-1 # supports mathematical operand like + , - , / , * , ** , // , %
-
-must name = "joy" #declare constant variables
-
-may n = "a"
-n = "b" # change-able variable value can be re-defined
-
-fn hello(){} # btw empty functions
-
-pub fn dem(){} # and empty public functions
-
-println("{z}") # print variables by putting them in {}
-
-println("{100**29}") # print supports maths aswell :3
-
-fn yo(x : int , y : string){} # functions can take arguments but they dont do anything for now :(
-
-```
+### [Visit the Neit Website](https://oxumlabs.github.io/nsite)
 
 ---
 
----
+Welcome to the wacky world of Neit! 🌟
 
-## Installation Instructions
+Neit isn’t just a programming language; it’s a vibrant universe bursting with possibilities.
 
----
+Imagine a place where you can conjure up your own syntax, like a wizard casting spells!
 
-### Windows Installation
-
-Download and run the [**Neitset**](https://github.com/oxumlabs/neitset) program to auto install neit and set it on path
-
-### Linux Installation
+Whether you're brewing potions in the form of high-level code or diving deep into the low-level realms of programming, Neit has got your back.
 
 ---
 
-Neitset for linux works aswell but it isnt perfect tho you can try to use it at : [**Neitset**](https://github.com/oxumlabs/neitset)
+**With the magical** **NTune Engine** **at your disposal, you can bend the very fabric of syntax to your will, changing it on the fly!**
+
+Why settle for cookie-cutter programming when you can create your own unique flavor?
+
+So get ready to unleash your creativity and let your imagination run wild!
 
 ---
 
-For Linux:
-make sure you have nasm (netwide assembler installer on your system) along with the clang
+But beneath all the fun and whimsy lies a powerful and serious tool designed for real-world applications.
 
-```bash
-# for debian and ubuntu based
-sudo apt install nasm llvm
-
-# for fedora and its derivatives / RHEL
-sudo dnf install nasm llvm
-
-
-# for Arch and its deriavatives
-sudo pacman -S nasm llvm
-
-# opensuse
-sudo zypper install nasm lvm
-
-
-# alpine linux
-sudo apk add nasm llvm
-
-#solus os
-sudo eopkg install nasm llvm
-
-#gentoo linux
-sudo emerge nasm llvm
-
-#slackware
-slackpkg install nasm llvm
-
-#for lfs
-wget https://www.nasm.us/pub/nasm/releasebuilds/nasm-X.XX.tar.gz
-tar -xzf nasm-X.XX.tar.gz
-cd nasm-X.XX
-./configure
-make
-sudo make install
-
-wget https://github.com/llvm/llvm-project/releases/download/llvmorg-X.XX.0/llvm-X.XX.0.src.tar.xz
-tar -xf llvm-X.XX.0.src.tar.xz
-cd llvm-X.XX.0.src
-mkdir build
-cd build
-cmake ..
-make
-sudo make install
-
-
-
-```
+Whether you’re a coding novice or a seasoned pro, Neit is here to help you make your mark in the world of programming.
 
 ---
 
-# This Project is under the **Apache License 2.0 so anyone who is going to fork this work is obliged to read the license thouroghly (its short dont worry)** here : [license](LICENSE)
+**So come on, join the Neit revolution—let’s code the future together!** 🚀
+
+---
+
+###### Watch a quick video?
+
+[![Watch the video](https://img.youtube.com/vi/SO-IZHkWgOA/hqdefault.jpg)](https://youtu.be/SO-IZHkWgOA)
+
+---
+
+> ⚠️ **IMPORTANT NOTE** ⚠️  
+> As of October 7th at 19:55 (7:55 PM) **[IST]**, Neit is still under development and not yet production-ready.
+> Here at Oxum Labs, we are committed to delivering an exceptional experience with Neit.
+> Your support and patience are invaluable to us as we make continuous improvements.
+> We sincerely thank you for joining us on this journey.
+> Together, we can shape the future of programming.
+> Please stay tuned for regular updates and exciting developments related to Neit!
+
+---
+
+> **Thank you for your interest in Neit!**  
+> Stay connected with us for the latest updates. 💡
