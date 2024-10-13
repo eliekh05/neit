@@ -4,10 +4,9 @@ use super::{
     tokens::{func::process_func, input::process_input, print::process_print, var::process_var},
     types::{Args, Tokens, Vars},
 };
-use colored::*; // Import the colored crate
 
 #[allow(unused, irrefutable_let_patterns)]
-pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<Tokens>, String> {
+pub fn gentoken(code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<Tokens>, String> {
     let mut index: i64 = 0;
     let mut tokens: Vec<Tokens> = casetkns;
     let mut ct: Vec<Tokens> = Vec::new();
@@ -17,32 +16,72 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
     let mut p_label = 0;
     let mut fp_label = 364;
     let mut incase = false;
-    let mut cbody: Vec<&str> = Vec::new();
+    let mut cbody: Vec<String> = Vec::new();
     let mut cname = String::new();
+    let mut inif = false;
+    let mut ifbody: Vec<String> = Vec::new();
 
-    for mut ln in code.clone() {
+    for (mut i, mut ln) in code.clone().iter().enumerate() {
+        //println!("ln : {:?} | inif : {:?} | incase : {:?}", ln, inif, incase);
+        let mut ln = ln.as_str();
+        ln = ln.trim(); // Trim whitespace from the line
         if let Some(pos) = ln.find('#') {
             ln = ln[..pos].trim(); // Remove comments
         }
         index += 1;
-        ln = ln.trim(); // Trim whitespace from the line
-        if incase {
+
+        if ln.starts_with("if{") && !in_function {
+            inif = true;
+            brace_depth += 1;
+            continue;
+        } else if inif && !in_function {
+            if ln != "}" {
+                let pts: Vec<&str> = ln.split(":").collect();
+                if pts.len() != 2 && !ln.trim().is_empty() {
+                    return Err(format!(
+                        "Error at line '{}':\n\
+                        An 'if' statement must have 2 parts separated by ':'.\n\
+                        You provided: {}\n\
+                        Please fix this!",
+                        index, ln
+                    ));
+                }
+                brace_depth -= 1;
+
+                //ifbody.push(ln.to_string());
+            } else {
+                inif = false;
+                //println!("ifbod : \n{:?}", ifbody);
+                let iftkn = Tokens::Cond(ifbody.clone());
+                if fc {
+                    ct.push(iftkn);
+                } else {
+                    tokens.push(iftkn);
+                }
+            }
+        } else if incase {
             brace_depth += ln.matches("{").count();
             brace_depth -= ln.matches("}").count();
             if brace_depth == 0 {
                 incase = false;
+                // println!("cname : {}\ncbody : {:?}", cname, cbody);
                 let pc = process_case(ln, cbody.clone(), &mut index, &tokens, true);
+                cbody.clear();
                 match pc {
                     Ok(k) => {
-                        tokens.push(Tokens::IFun(cname.clone(), k.clone()));
-                        println!("k : {:?}\ntokens : \n{:?}", k, tokens);
+                        if fc {
+                            ct.push(Tokens::IFun(cname.clone(), k.clone()));
+                        } else {
+                            tokens.push(Tokens::IFun(cname.clone(), k.clone()));
+                        }
+                        //println!("k : {:?}\ntokens : \n{:?}", k, tokens);
                     }
                     Err(e) => return Err(e),
                 }
-                println!("cbody : {:?}", cbody);
+                //println!("cbody : {:?}", cbody);
+            } else {
+                cbody.push(ln.to_string());
             }
-
-            cbody.push(ln);
         }
 
         if ln.is_empty() {
@@ -55,11 +94,19 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
         {
             if in_function {
                 return Err(format!(
-                    "{} Oh no, rookie move! Found another function at line {} while you're still inside one.\n\
-                     → First finish what you started before moving on!\n\
-                     Code:\n   => {}\n\
-                     Seriously, let’s close that function off before we get ahead of ourselves, okay?",
-                    "✘".red(), index, ln
+                    "{} Error: Nested Function Detected!\n\
+                    You're trying to define a new function at line {} while still inside another function.\n\
+                    What happened:\n\
+                    → At line {}, you started a new function without closing the previous one.\n\
+                    What to do:\n\
+                    1. Complete the current function definition.\n\
+                    2. Ensure each function has matching braces ('{{' and '}}').\n\
+                    Code snippet causing the issue:\n\
+                    ----------------------------\n\
+                    {}\n\
+                    ----------------------------\n\
+                    Please close the current function before starting a new one!",
+                    "✘", index, index, ln
                 ));
             }
 
@@ -75,9 +122,29 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
             }
         } else if in_function {
             function_body.push(ln);
+            println!("\nadding ln to func : \n{}", ln);
+            println!("brace depth before : {}", brace_depth);
 
             brace_depth += ln.matches('{').count();
             brace_depth -= ln.matches('}').count();
+            println!("brace depth after : {}", brace_depth);
+            if brace_depth > 0 && (i + 1 >= code.len()) {
+                return Err(format!(
+                    "{} Error: Function has not been properly closed!\n\
+                    The function declaration is missing a closing brace.\n\
+                    What happened:\n\
+                    → At line {}, there is an unmatched opening brace '{{'. The function remains open and needs to be properly closed.\n\
+                    What to do:\n\
+                    1. Ensure that every opening brace '{{' has a corresponding closing brace '}}'.\n\
+                    2. Check the function body for completeness.\n\
+                    Code snippet causing the issue:\n\
+                    ----------------------------\n\
+                    {}\n\
+                    ----------------------------\n\
+                    Please fix the braces to ensure proper function closure!",
+                    "✘", i, code.join("\n")
+                ));
+            }
 
             if brace_depth == 0 {
                 let full_function_code = function_body.join("\n");
@@ -92,11 +159,19 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
                             .any(|tkn| matches!(tkn, Tokens::Func(f) if f.name == func.name))
                         {
                             return Err(format!(
-                                "{} Yikes! The function '{}' is already declared at line {}. Rookie mistake, am I right?\n\
-                                 → Ever heard of unique names? Let's give that function a fresh one!\n\
-                                 Code:\n   => {}\n\
-                                 Keep it unique, champ!",
-                                "✘".red(), func.name, index, full_function_code
+                                "{} Error: Function Name Already Declared!\n\
+                                The function '{}' was declared at line {}. Function names must be unique within the same scope.\n\
+                                What happened:\n\
+                                → At line {}, you tried to declare the function '{}', but it already exists.\n\
+                                What to do:\n\
+                                1. Choose a unique name for the new function.\n\
+                                2. Ensure the name is descriptive and relevant.\n\
+                                Code snippet causing the issue:\n\
+                                ----------------------------\n\
+                                {}\n\
+                                ----------------------------\n\
+                                Let’s keep it unique!",
+                                "✘", func.name, index, index, func.name, full_function_code
                             ));
                         }
                         if !fc {
@@ -114,16 +189,20 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
             let cnamee = ln[5..].trim_end_matches("{");
             if !cname.chars().all(|c| c.is_alphabetic() || c == '_') {
                 return Err(format!(
-                    "Error at line '{}' in main file\n{} names can only contain alphabets and '_' tho you gave me '{}'\nMaybe fix this and then we can continue?",
-                    index,
-                    "case",
-                    cname
+                    "Error: Invalid Case Name at Line {} in Main File\n\
+                    Case name '{}' contains invalid characters. Only alphabetic characters (A-Z, a-z) and underscores ('_') are allowed.\n\
+                    Provided: '{}'.\n\
+                    What to do:\n\
+                    1. Ensure the case name consists only of letters and underscores.\n\
+                    2. Avoid numbers, special characters, or spaces.\n\
+                    Once corrected, we can proceed!",
+                    index, cname, cname
                 ));
             }
             cname = cnamee.to_string();
             brace_depth += 1;
             incase = true;
-        } else if ln.trim().starts_with("must ") && !incase {
+        } else if ln.trim().starts_with("must ") && !incase && !inif {
             let vr = process_var(ln.trim(), &tokens, false);
             match vr {
                 Ok(vr) => {
@@ -131,6 +210,18 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
                         ct.push(Tokens::Var(vr.0, vr.1, false)); // Add to ct if fc is true
                     } else {
                         tokens.push(Tokens::Var(vr.0, vr.1, false)); // Add to tokens if fc is false
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        } else if ln.trim().starts_with("may ") && !incase && !inif {
+            let vr = process_var(ln.trim(), &tokens, true);
+            match vr {
+                Ok(vr) => {
+                    if fc {
+                        ct.push(Tokens::Var(vr.0, vr.1, true)); // Add to ct if fc is true
+                    } else {
+                        tokens.push(Tokens::Var(vr.0, vr.1, true)); // Add to tokens if fc is false
                     }
                 }
                 Err(e) => return Err(e),
@@ -148,7 +239,7 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
                 }
                 Err(e) => return Err(e),
             }
-        } else if ln.trim().starts_with("print(") && ln.trim().ends_with(")") && !incase {
+        } else if ln.trim().starts_with("print(") && ln.trim().ends_with(")") && !incase && !inif {
             let mut txt: String = ln[6..ln.len() - 1].trim().to_string(); // Extract println arguments
             let ptxt = process_print(&mut p_label, &txt, &tokens);
             if !fc {
@@ -156,7 +247,7 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
             } else {
                 ct.push(ptxt);
             }
-        } else if ln.starts_with("takein(") && !incase {
+        } else if ln.starts_with("takein(") && !incase && !inif {
             let tkn = process_input(&ln, &tokens);
             match tkn {
                 Ok(tkn) => {
@@ -168,7 +259,8 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
                 }
                 Err(e) => return Err(e),
             }
-        } else if ln.trim().starts_with("println(") && ln.trim().ends_with(")") && !incase {
+        } else if ln.trim().starts_with("println(") && ln.trim().ends_with(")") && !incase && !inif
+        {
             let mut txt: String = ln[9..ln.len() - 2].to_string(); // Extract println arguments
             let txt = format!(r#""{}\n""#, txt);
             let ptxt = process_print(&mut p_label, &txt, &tokens);
@@ -177,7 +269,7 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
             } else {
                 ct.push(ptxt);
             }
-        } else if !incase {
+        } else if !incase && !inif {
             let args: Vec<&str> = ln.trim().split('(').collect(); // Split on parentheses
             let mut found_function = false;
 
@@ -201,27 +293,52 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
 
                     if provided_args.len() != expected_args.len() {
                         return Err(format!(
-                            "{} Oops! Looks like you called the function '{}' at line {} with the wrong number of arguments.\n\
-                             → Expected {}, but you gave me {}. Rookie mistake, right?\n\
-                             Code:\n   => {}\n\
-                             Let’s fix that up, shall we?",
-                            "✘".red(), nm.trim(), index, expected_args.len(), provided_args.len(), ln
+                            "{} Error: Incorrect Number of Arguments at Line {}\n\
+                            Function '{}' called with the wrong number of arguments.\n\
+                            → Expected: {} arguments\n\
+                            → Provided: {}\n\
+                            → Line {}: Attempted to call '{}'. Expected {}, but got {}.\n\
+                            Suggestions:\n\
+                            1. Check the function definition for the correct number of arguments.\n\
+                            2. Adjust the call to match the expected number.\n\
+                            Code:\n\
+                            ----------------------------\n\
+                            {}\n\
+                            ----------------------------\n\
+                            Let’s fix this!",
+                            "✘",
+                            index,
+                            nm.trim(),
+                            expected_args.len(),
+                            provided_args.len(),
+                            index,
+                            nm.trim(),
+                            expected_args.len(),
+                            provided_args.len(),
+                            ln
                         ));
                     }
 
                     for (provided, expected) in provided_args.iter().zip(expected_args.iter()) {
-                        let provided_type =
-                            match determine_type(provided, &tokens) {
-                                Ok(t) => t,
-                                Err(_) => {
-                                    return Err(format!(
-                                    "{} Are you kidding me? I can't even parse '{}' at line {}.\n\
-                                 → Double check that argument—I'm begging you!\n\
-                                 Code:\n   => {}",
-                                    "✘".red(), provided, index, ln
-                                ))
-                                }
-                            };
+                        let provided_type = match determine_type(provided, &tokens) {
+                            Ok(t) => t,
+                            Err(_) => {
+                                return Err(format!(
+                                    "{} Error: Unable to Parse Argument at Line {}\n\
+                                    Trouble parsing argument '{}'.\n\
+                                    → Line {}: Argument '{}' couldn’t be processed.\n\
+                                    Suggestions:\n\
+                                    1. Check syntax, data type, and special characters.\n\
+                                    2. Look for typos or misplaced punctuation.\n\
+                                    Code:\n\
+                                    ----------------------------\n\
+                                    {}\n\
+                                    ----------------------------\n\
+                                    Let’s fix that argument!",
+                                    "✘", index, provided, index, provided, ln
+                                ));
+                            }
+                        };
 
                         let expected_type = match expected {
                             Args::Str(_) => "string",
@@ -232,10 +349,26 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
 
                         if provided_type != expected_type {
                             return Err(format!(
-                                "{} Oh no! The argument '{}' doesn't match the expected type '{}'. Line {}:\n\
-                                 Code:\n   => {}\n\
-                                 Let's get our types sorted out, shall we?",
-                                "✘".red(), provided, expected_type, index, ln
+                                "{} Error: Argument Type Mismatch at Line {}\n\
+                                Argument '{}' doesn’t match expected type '{}'.\n\
+                                → Line {}: Provided: '{}', Expected: '{}'.\n\
+                                Suggestions:\n\
+                                1. Ensure argument type aligns with expectations.\n\
+                                2. Cast or convert if necessary.\n\
+                                3. Check function signature.\n\
+                                Code:\n\
+                                ----------------------------\n\
+                                {}\n\
+                                ----------------------------\n\
+                                Let’s sort out those types!",
+                                "✘",
+                                index,
+                                provided,
+                                expected_type,
+                                index,
+                                provided,
+                                expected_type,
+                                ln
                             ));
                         }
                     }
@@ -254,24 +387,40 @@ pub fn gentoken(code: Vec<&str>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<
             if !found_function {
                 if ln.chars().all(|c| c == '}') {
                     continue;
+                } else if ln.ends_with(";") {
+                    return Err(format!(
+                        "{} Error: Syntax Conundrum at Line {}\n\
+                        It seems you’ve ended your line with a semicolon! Here’s what to check:\n\
+                        → Line {}:\n\
+                        → {}\n\
+                        Suggestions:\n\
+                        1. Did you mean to end your statement? Maybe you intended to continue?\n\
+                        2. Is this a single statement or something more? Reflect on your semicolon’s role.\n\
+                        3. Watch for typos or formatting errors that might mislead me!\n\
+                        Just a nudge to help you along! You’ve got this!",
+                        "!", index, index, ln
+                    ));
                 }
                 return Err(format!(
-                    "{} So, about that line {}... I couldn't quite figure out what you meant.\n\
-                     → Make sure to double-check your syntax.\n\
-                     Code:\n   => {}\n\
-                     It's a bit of a head-scratcher, I know.",
-                    "✘".red(),
-                    index,
-                    ln
+                    "{} Error: Syntax Issue at Line {}\n\
+                    There seems to be a syntax error at line {}:\n\
+                    → {}\n\
+                    Suggestions:\n\
+                    1. Check for missing punctuation or keywords.\n\
+                    2. Ensure all brackets and quotes are matched.\n\
+                    3. Look for typos or unusual formatting.\n\
+                    A quick review can help us resolve this!",
+                    "✘", index, index, ln
                 ));
             }
         }
     }
-
+    //println!("ct :\n{:?}\ntokens : \n{:?}", ct, tokens);
     if fc {
         return Ok(ct);
+    } else {
+        Ok(tokens) // Return the generated tokens
     }
-    Ok(tokens) // Return the generated tokens
 }
 
 /// A function to process case statements separately.
@@ -312,9 +461,17 @@ pub fn determine_type(arg: &str, tokens: &Vec<Tokens>) -> Result<&'static str, S
         Ok("float")
     } else {
         return Err(format!(
-            "✘ Oh wow... '{}' isn't even a valid type. Come on now, you should know better.\n\
-             → Let’s stick to int, float, or string, okay?\n\
-             Code:\n   => {}",
+            "✘ Error: Invalid Type Provided\n\n\
+            It appears that '{}' is not a recognized or valid type. Let's get back on track with our data types!\n\n\
+            Valid types include:\n\
+            → `int`: for integers\n\
+            → `float`: for floating-point numbers\n\
+            → `string`: for sequences of characters\n\n\
+            Code snippet causing the issue:\n\
+            ----------------------------\n\
+            {}\n\
+            ----------------------------\n\
+            Please review your type usage and make sure to stick with the supported types. We can get this sorted out!",
             arg, arg
         ));
     }

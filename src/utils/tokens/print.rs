@@ -1,8 +1,11 @@
 use std::process::exit;
 
-use crate::utils::{
-    maths::evaluate_expression,
-    types::{Tokens, Vars},
+use crate::{
+    utils::{
+        maths::evaluate_expression,
+        types::{Tokens, Vars},
+    },
+    UCMF, UCMI,
 };
 
 pub fn process_print(num: &mut i32, text: &str, vars: &Vec<Tokens>) -> Tokens {
@@ -67,11 +70,17 @@ pub fn process_print(num: &mut i32, text: &str, vars: &Vec<Tokens>) -> Tokens {
                                 }
                                 Err(e) => {
                                     eprintln!(
-                                        "✘ Error: Failed to evaluate the expression '{}'.\n\
-                                         Reason: {}\n\
-                                         → Please check the expression and try again.",
+                                        "✘ Error: Expression Evaluation Failed\n\
+                                        Expression: '{}'\n\
+                                        ➔ Reason: {}\n\
+                                        Steps to troubleshoot:\n\
+                                        1. Review the syntax for errors or typos.\n\
+                                        2. Ensure all variables are defined and accessible.\n\
+                                        3. Check for logical issues affecting evaluation.\n\
+                                        → Please check the expression and try again.",
                                         current_var, e
                                     );
+
                                     exit(1);
                                 }
                             }
@@ -108,33 +117,66 @@ pub fn process_print(num: &mut i32, text: &str, vars: &Vec<Tokens>) -> Tokens {
 
 pub fn p_to_c(text: &str, _vars: &Vec<Tokens>) -> String {
     let mut c_code = String::new();
-    c_code.push('\"'); // Start the C string literal
+    c_code.push_str("\""); // Start the printf statement with printf
     let mut collected_vars = Vec::new();
     let mut inside_var = false;
     let mut var_name = String::new();
     let mut literal_text = String::new();
+
+    // Helper function to build nested calls
+    fn build_nested_calls(parts: Vec<&str>) -> String {
+        if parts.is_empty() {
+            return String::new();
+        }
+
+        let first_value = parts[0].trim();
+        let mut result = String::new();
+
+        // Check if first_value is valid for parsing
+        if let Ok(_) = first_value.parse::<f64>() {
+            result.push_str(&format!("fdf({}", first_value));
+            unsafe { UCMF = true };
+        } else {
+            result.push_str(&format!("fdi({}", first_value));
+            unsafe { UCMI = true };
+        }
+
+        // Recursively build nested calls for the remaining parts
+        for (i, &part) in parts[1..].iter().enumerate() {
+            // Check if this is the last part
+            if i == parts.len() - 2 {
+                result.push_str(&format!(", {}", part.trim()));
+                result.push(')'); // Close the initial fdf/fdi call
+                break; // Exit after adding the last part
+            } else {
+                // Create a nested call for this part
+                let nested_call = build_nested_calls(vec![part.trim()]);
+                result.push_str(&format!(", {}", nested_call));
+            }
+        }
+        result
+    }
 
     // Iterate over each character in the input text
     for c in text.chars() {
         if inside_var {
             if c == '|' {
                 inside_var = false; // End of variable
-                                    // Split on '~' to get variable name and format
                 let parts: Vec<&str> = var_name.split('~').collect();
                 if parts.len() == 2 {
                     let var = parts[0];
                     let fmt = parts[1];
 
-                    // Add the appropriate format specifier to the c_code
-                    match fmt {
-                        "s" => c_code.push_str("%s"),
-                        "d" => c_code.push_str("%d"),
-                        "f" => c_code.push_str("%f"),
-                        _ => {}
-                    }
-
                     // Collect the variable name for the argument list
                     collected_vars.push(var.to_string());
+
+                    // Add the appropriate format specifier to the literal text
+                    match fmt {
+                        "s" => literal_text.push_str("%s"),
+                        "d" => literal_text.push_str("%d"),
+                        "f" => literal_text.push_str("%f"),
+                        _ => {}
+                    }
                 }
                 var_name.clear(); // Clear variable name for next usage
             } else {
@@ -153,24 +195,28 @@ pub fn p_to_c(text: &str, _vars: &Vec<Tokens>) -> String {
             inside_var = false; // End of an expression
             if !var_name.is_empty() {
                 let expression = var_name.clone();
-                if expression.contains("/")
-                    || expression.contains("*")
-                    || expression.contains("+")
-                    || expression.contains("-")
-                {
-                    // It's an expression; add it directly without formatting
-                    c_code.push_str(&expression);
+                if expression.contains("//") {
+                    // Split on "//" for nested function calls
+                    let pts: Vec<&str> = expression.split("//").collect();
+                    let nested_call = build_nested_calls(pts);
+                    literal_text.push_str(&nested_call);
                 } else {
-                    // It's a variable; we need to format it
+                    // Existing logic for handling single variables
                     let mut var_found = false;
                     for v in _vars.iter() {
                         if let Tokens::Var(v_type, n, _) = v {
                             if *n == expression {
                                 var_found = true;
                                 match v_type {
-                                    Vars::STR(_) => c_code.push_str(&format!("|{}~s|", n)),
-                                    Vars::INT(_) => c_code.push_str(&format!("|{}~d|", n)),
-                                    Vars::F(_) => c_code.push_str(&format!("|{}~f|", n)),
+                                    Vars::STR(_) => {
+                                        literal_text.push_str(&format!("|{}~s|", n));
+                                    }
+                                    Vars::INT(_) => {
+                                        literal_text.push_str(&format!("|{}~d|", n));
+                                    }
+                                    Vars::F(_) => {
+                                        literal_text.push_str(&format!("|{}~f|", n));
+                                    }
                                     _ => {}
                                 }
                                 break;
@@ -180,10 +226,15 @@ pub fn p_to_c(text: &str, _vars: &Vec<Tokens>) -> String {
                     // Handle case where variable was not found
                     if !var_found {
                         eprintln!(
-                            "✘ Error: Cannot find the variable '{}'!\n\
-                             → Please ensure it is defined correctly.",
+                            "✘ Error: Variable Not Found\n\
+                            Cannot find the variable '{}'.\n\
+                            ➔ Ensure it's defined correctly and in scope.\n\
+                            ➔ Check for typos in the variable name.\n\
+                            ➔ If defined in another block or function, ensure accessibility.\n\
+                            → Please review the declaration and try again.",
                             expression
                         );
+
                         exit(1);
                     }
                 }
@@ -199,26 +250,29 @@ pub fn p_to_c(text: &str, _vars: &Vec<Tokens>) -> String {
         c_code.push_str(&literal_text);
     }
 
-    c_code.push('\"'); // Close the C string literal
-
+    // Process collected variables for formatting
     // Process collected variables for formatting
     for cv in collected_vars.iter_mut() {
         if cv.contains("//") {
             let pts: Vec<&str> = cv.split("//").collect();
-            let first_value = pts[0].trim();
-            if let Ok(_) = first_value.parse::<f64>() {
-                *cv = format!("fdf({}, {})", first_value, pts[1].trim());
-            } else {
-                *cv = format!("fdi({}, {})", first_value, pts[1].trim());
-            }
+            let nested_call = build_nested_calls(pts.clone());
+            let closing_parentheses_count = pts.len() - 1;
+            *cv = format!(
+                "{}{}",
+                nested_call,
+                ")".repeat(closing_parentheses_count - 1)
+            );
         }
     }
 
     // Append all the collected variables to the printf statement
     if !collected_vars.is_empty() {
-        c_code.push_str(", ");
+        c_code.push_str("\", ");
         c_code.push_str(&collected_vars.join(", ")); // Join collected variables with commas
+    } else {
+        c_code.push_str("\"");
     }
-    //println!("c_code : {} |", c_code); // Debugging output
+
+    c_code.push_str(""); // Close the printf statement
     c_code
 }

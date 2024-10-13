@@ -6,9 +6,17 @@ use std::{
     process::{exit, Command, Stdio},
 };
 
+use std::sync::mpsc;
+use std::thread;
+
+pub static mut UCMF: bool = false;
+pub static mut UCMI: bool = false;
+
+pub mod cli;
 pub mod compilers;
 pub mod ntune;
 pub mod utils;
+use cli::cli;
 use compilers::{
     compile::{check_tools_installed, compile},
     genasm_lin::genasm_lin,
@@ -37,6 +45,7 @@ fn main() {
 
     // Ensure we have the required command and project path
     if args.len() < 2 {
+        cli();
         eprintln!(
             "✘ Oops! It looks like you forgot to include a command!\n\
             Usage: {} <command> [<project_path>]\n\
@@ -71,16 +80,17 @@ fn main() {
         "run" => run_project(proj),
         "new" => create_new_project(proj),
         "help" => display_help(),
+        "cli" => cli(),
         "target-list" => display_target_list(),
         _ => {
             eprintln!(
                 "✘ Oops! It looks like the command '{}' is not valid—it's like trying to use a banana as a phone!\n\
                 ➔ Supported commands:\n\
-                - help: Need a hand?\n\
-                - target-list: What’s on the menu?\n\
-                - build: Let’s construct something awesome!\n\
-                - run: Time to get moving!\n\
-                - new: Ready for a fresh start?\n\
+                    - help: Need a hand?\n\
+                    - target-list: What’s on the menu?\n\
+                    - build: Let’s construct something awesome!\n\
+                    - run: Time to get moving!\n\
+                    - new: Ready for a fresh start?\n\
                 ➔ Let’s stick to these commands and keep the fun rolling!",
                 cmd
             );
@@ -109,9 +119,14 @@ fn build_project(proj: &str) {
         Ok(content) => content,
         Err(e) => {
             eprintln!(
-                "✘ Uh-oh! I tried to read the 'project.conf' file at '{}' but it seems to be missing!\n\
-                ➔ Error: {}\n\
-                Let’s find out what’s going on—maybe it’s just hiding?",
+                "✘ Error: Missing Configuration File\n\n\
+                Uh-oh! I attempted to read the 'project.conf' file at '{}' but it appears to be missing or inaccessible.\n\n\
+                ➔ Detailed Error: {}\n\n\
+                Here's what you can do:\n\
+                1. Check if the file exists at the specified path.\n\
+                2. Ensure you have the necessary permissions to access the file.\n\
+                3. If the file was moved or deleted, consider restoring it from a backup.\n\n\
+                Let’s figure this out together—maybe it’s just hiding!",
                 proj, e
             );
 
@@ -144,9 +159,15 @@ fn build_project(proj: &str) {
     // Ensure the project name is found
     if project_name.is_empty() {
         eprintln!(
-            "✘ Uh-oh! It seems like I couldn’t find a project name in 'project.conf'—it’s like looking for a needle in a haystack!\n\
-            ➔ Let’s make sure you’ve got a name in there so we can get this party started!"
+            "✘ Error: Missing Project Name in Configuration\n\n\
+            Uh-oh! I couldn't find a project name in 'project.conf'. It's like looking for a needle in a haystack!\n\n\
+            ➔ Here's what you can do:\n\
+            1. Open the 'project.conf' file and ensure that a project name is specified.\n\
+            2. The project name should be clearly defined—check for any typos or formatting issues.\n\
+            3. If the file is empty, consider adding a project name to get things rolling.\n\n\
+            Let’s make sure you’ve got a name in there so we can get this party started!"
         );
+
         exit(1);
     }
 
@@ -155,11 +176,16 @@ fn build_project(proj: &str) {
         Ok(content) => content,
         Err(e) => {
             eprintln!(
-                "✘ Uh-oh! I tried to read the 'main.nsc' file at '{}' but it seems to be missing!\n\
-                ➔ Error: {}\n\
-                Let’s track it down and see what’s going on—maybe it needs a map!",
-                proj, e
+                "✘ Error: Missing 'main.nsc' File\n\n\
+                Uh-oh! I attempted to read the 'main.nsc' file at '{}' but it appears to be missing or inaccessible.\n\n\
+                ➔ Detailed Error: {}\n\n\
+                Here's how to troubleshoot:\n\
+                1. Check if the 'main.nsc' file exists at the specified path.\n\
+                2. Ensure that you have the necessary permissions to access this file.\n\
+                3. If the file has been moved or deleted, consider restoring it from a backup or recreating it.\n\n\
+                Let’s track it down and see what’s going on—maybe it just needs a map!", main_file_path, e
             );
+
             exit(1);
         }
     };
@@ -174,33 +200,64 @@ fn build_project(proj: &str) {
         updated_content = process_neit_file(&main_file_path, &usrgrm, &defgen);
     }
 
-    let code: Vec<&str> = updated_content.lines().collect();
+    let code: Vec<String> = updated_content
+        .lines()
+        .map(|line| line.to_owned())
+        .collect();
     match gentoken(code, Vec::new(), false) {
         Ok(tokens) => {
-            // Process each build target
-            for target in build_targets {
-                // Generate assembly code based on the target
-                let mut asm_code = String::new();
-                if target != "win_asm" && target != "lin_asm" {
-                    asm_code = to_c(&tokens); // Handle unsupported targets
-                } else {
-                    if target == "win_asm" {
-                        asm_code = genasm_win(&tokens); // Generate Windows ASM
-                        println!("\n\nWindows ASM :\n{}\n\n", asm_code);
-                    } else {
-                        asm_code = genasm_lin(&tokens); // Generate Linux ASM
-                        println!("\n\nLinux ASM :\n{}\n\n", asm_code);
-                    }
-                }
+            // Create a channel to receive results from threads
+            println!("tokens : {:?}", tokens);
+            let (tx, rx) = mpsc::channel();
+            let mut handles = vec![];
 
-                // Compile the generated assembly code, passing the project name
-                if target == "win_asm" {
-                    compile(&asm_code, proj, &target, &project_name);
-                } else if target == "lin_asm" {
-                    compile(&asm_code, proj, &target, &project_name);
-                } else {
-                    comp_c(&asm_code, proj, &target, &project_name);
-                }
+            // Process each build target in parallel
+            for target in build_targets {
+                let tokens_clone = tokens.clone(); // Clone tokens for thread safety
+                let proj_clone = proj.to_string();
+                let project_name_clone = project_name.clone();
+                let tx_clone: mpsc::Sender<&str> = tx.clone();
+
+                let handle = thread::spawn(move || {
+                    let mut asm_code = String::new();
+
+                    if target != "win_asm" && target != "lin_asm" {
+                        asm_code = to_c(&tokens_clone); // Handle unsupported targets
+                    } else {
+                        if target == "win_asm" {
+                            println!("WARNING! :- Windows Assembly Don't seem to do anything right now I really don't know why, ask the creator...");
+                            asm_code = genasm_win(&tokens_clone); // Generate Windows ASM
+                            println!("\n\nWindows ASM :\n{}\n\n", asm_code);
+                        } else {
+                            asm_code = genasm_lin(&tokens_clone); // Generate Linux ASM
+                            println!("\n\nLinux ASM :\n{}\n\n", asm_code);
+                        }
+                    }
+
+                    // Compile the generated assembly code, passing the project name
+                    if target == "win_asm" || target == "lin_asm" {
+                        compile(&asm_code, &proj_clone, &target, &project_name_clone);
+                    } else {
+                        comp_c(&asm_code, &proj_clone, &target, &project_name_clone);
+                    }
+
+                    // Send back the results (you can modify this to return more info)
+                    //tx_clone.send("").unwrap();
+                });
+
+                handles.push(handle);
+            }
+
+            // Drop the sender to close the channel after all threads are done
+            drop(tx);
+
+            // Wait for all threads to complete and handle results
+            for received in rx {
+                println!("{}", received);
+            }
+
+            for handle in handles {
+                handle.join().unwrap(); // Wait for each thread to finish
             }
         }
         Err(e) => {
@@ -226,25 +283,33 @@ fn run_project(proj: &str) {
         Ok(content) => content,
         Err(e) => {
             eprintln!(
-                "✘ Uh-oh! I tried to read the 'main.nsc' file at '{}' but it seems to be missing!\n\
-                ➔ Error: {}\n\
-                Let’s track it down and see what’s going on—maybe it needs a map!",
-                proj, e
+                "✘ Error: 'main.nsc' File Not Found\n
+                Uh-oh! I tried to read the 'main.nsc' file at '{}' but it appears to be missing.\n
+                ➔ Detailed Error: {}\n
+                Here are some steps to help you troubleshoot:\n\
+                1. Verify that the 'main.nsc' file exists at the specified path.
+                2. Check your file permissions to ensure you can access it.
+                3. If the file was moved or deleted, you might need to restore it from a backup or create a new one.
+                Let’s track it down and see what’s going on—maybe it just needs a map!",mf,e
             );
+
             exit(1);
         }
     };
+
     let cf = format!("{}/project.conf", proj);
     let cc = match read_to_string(&cf) {
         Ok(cc) => cc,
         Err(_) => {
-            eprintln!("✘ Uh-oh! I tried to find 'project.conf' file at '{}' but I cant find it!\n➔ Make sure it is there and didn't run away from me?",cf);
-            exit(1)
+            eprintln!("✘ Uh-oh! I tried to find 'project.conf' file at '{}' but I can't find it!\n➔ Make sure it is there and didn't run away from me?", cf);
+            exit(1);
         }
     };
+
     let mut icm = false;
     let mut igf = String::new();
     let mut ugf = String::new();
+
     for cfc in cc.lines() {
         if cfc.trim().starts_with("[sec-start] grammar") {
             icm = true;
@@ -253,27 +318,23 @@ fn run_project(proj: &str) {
         } else {
             if icm {
                 if cfc.trim().starts_with("input_grammar=") {
-                    //println!("igf : {}", cfc);
                     igf = cfc.trim_start_matches("input_grammar=").to_string();
-                    //println!("igf : {}", igf);
                 } else if cfc.trim().starts_with("use_grammar=") {
                     ugf = cfc.trim_start_matches("use_grammar=").to_string();
                 }
             }
         }
     }
+
     if !igf.is_empty() {
-        //println!("main content :\n {}", mc);
         let mut usrgrm: Vec<Grammar> = Vec::new();
         let defgen = gen_grm();
         process_grammar_file(&format!("{}/{}", proj, igf), &mut usrgrm);
         let nmc = process_neit_file(&mf, &usrgrm, &defgen);
-        //println!("nmc : {}", nmc);
         mc = nmc;
-        //println!("main content after parsing :\n {}", mc);
     }
 
-    let cds: Vec<&str> = mc.split("\n").collect();
+    let cds: Vec<String> = mc.lines().map(|s| s.to_owned()).collect();
     match gentoken(cds, Vec::new(), false) {
         Ok(tkns) => {
             let dtf = format!("{}/_.c", proj); // Temporary C file
@@ -282,9 +343,18 @@ fn run_project(proj: &str) {
                 "linux" => format!("{}/_.out", proj),
                 _ => {
                     eprintln!(
-                        "✘ Oops! I can't seem to figure out what operating system we're on—it's like trying to find a unicorn in a haystack!\n\
-                        ➔ If you could use Windows, macOS, or Linux, that would be super helpful! Let’s get this sorted out!"
+                        "✘ Error: Unable to Determine Operating System\n\n\
+                        Oops! I can't seem to figure out what operating system we're on—it's like trying to find a unicorn in a haystack!\n\n\
+                        ➔ Please ensure you are using a supported operating system:\n\
+                            1. Windows\n\
+                            2. macOS\n\
+                            3. Linux\n\n\
+                        Here’s how you can help:\n\
+                            - Verify your operating system version and compatibility.\n\
+                            - If you are running an unsupported OS, consider switching to one of the supported systems.\n\n\
+                        Let’s get this sorted out so we can proceed smoothly!"
                     );
+
                     exit(1);
                 }
             };
@@ -297,57 +367,53 @@ fn run_project(proj: &str) {
                     // Write C code to the temporary C file
                     match dtcf.write_all(c.as_bytes()) {
                         Ok(_) => {
-                            // Compile the C file into an executable
-                            let cargs = vec![
-                                dtf.clone().to_string(),
-                                "-o".to_string(),
-                                outf.clone(),
-                                "-fuse-ld=lld".to_string(),
-                                "-Wno-format".to_string(),
-                            ];
-                            let cmd = Command::new("clang").args(cargs).status();
-
-                            match cmd {
-                                Ok(ok) => {
-                                    if ok.success() {
-                                        let status = Command::new(outf.clone())
-                                            .stdout(Stdio::inherit())
-                                            .stderr(Stdio::inherit())
-                                            .status()
-                                            .unwrap();
-                                        if !status.success() {
-                                            eprintln!(
-                                                "✘ Oh no! It seems that running the program failed.\n\
-                                                ➔ Let’s check the code and make sure everything is in order!"
-                                            );
-                                            exit(1);
-                                        }
-                                    } else {
-                                        eprintln!(
-                                            "✘ Oh no! It seems that the compilation failed.\n\
-                                            ➔ Let’s check for any errors in the code and try again!"
-                                        );
-                                        exit(1);
-                                    }
-                                }
-                                Err(e) => {
+                            // Compile the C file into an executable using clang first
+                            if !compile_with_clang(&dtf, &outf) {
+                                // If clang fails, fallback to gcc
+                                if !compile_with_gcc(&dtf, &outf) {
                                     eprintln!(
-                                        "✘ Uh-oh! I tried to run the command to compile but it didn’t go through.\n\
-                                        ➔ Error: {}\n\
-                                        Let’s see if we can troubleshoot this together!",
-                                        e
+                                        "✘ Error: Compilation Failed\n\n\
+                                        Oh no! Both clang and gcc failed to compile the C code.\n\n\
+                                        ➔ Here’s what you can do:\n\
+                                            1. Review the error messages from the compilation output for any clues.\n\
+                                            2. Check your C code for syntax errors or unsupported features.\n\
+                                            3. Ensure that all necessary libraries and headers are included.\n\n\
+                                        Let’s check for any errors in the code and try again!"
                                     );
+
                                     exit(1);
                                 }
+                            }
+
+                            // Run the compiled executable
+                            let status = Command::new(outf.clone())
+                                .stdout(Stdio::inherit())
+                                .stderr(Stdio::inherit())
+                                .status()
+                                .unwrap();
+                            if !status.success() {
+                                eprintln!(
+                                    "✘ Error: Program Execution Failed\n\n\
+                                    Oh no! It seems that running the program has failed.\n\n\
+                                    ➔ Here’s what you can do:\n\
+                                        1. Review the code for any logical errors or runtime exceptions.\n\
+                                        2. Ensure all necessary dependencies are correctly installed and configured.\n\
+                                        3. Check for any unhandled cases that might lead to a crash.\n\n\
+                                    Let’s check the code and make sure everything is in order!"
+                                );
+
+                                exit(1);
                             }
                         }
                         Err(e) => {
                             eprintln!(
-                                "✘ Uh-oh! I tried to write to the temporary C file but it seems to be having issues!\n\
+                                "✘ Error: Unable to Write to Temporary C File\n\n\
+                                Uh-oh! I tried to write to the temporary C file but it seems to be having issues!\n\n\
                                 ➔ Error: {}\n\
                                 Let’s check if there’s enough space or if something else is in the way!",
                                 e
                             );
+
                             exit(1);
                         }
                     }
@@ -370,6 +436,61 @@ fn run_project(proj: &str) {
     }
 }
 
+// Function to compile C code using clang
+fn compile_with_clang(c_file: &str, output_file: &str) -> bool {
+    let cargs = vec![
+        c_file.to_string(),
+        "-o".to_string(),
+        output_file.to_string(),
+        "-fuse-ld=lld".to_string(),
+        "-Wno-format".to_string(),
+    ];
+
+    match Command::new("clang").args(cargs).status() {
+        Ok(status) => {
+            if status.success() {
+                println!("Successfully compiled with clang.");
+                return true;
+            } else {
+                eprintln!("✘ Clang compilation failed. Checking gcc as a fallback...");
+                return false; // Clang failed, fall back to gcc
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "✘ Failed to run clang: {}\n\
+                ➔ Attempting to compile with gcc...",
+                e
+            );
+            return false; // Clang failed, fall back to gcc
+        }
+    }
+}
+
+// Function to compile C code using gcc
+fn compile_with_gcc(c_file: &str, output_file: &str) -> bool {
+    let cargs = vec![
+        c_file.to_string(),
+        "-o".to_string(),
+        output_file.to_string(),
+    ];
+
+    match Command::new("gcc").args(cargs).status() {
+        Ok(status) => {
+            if status.success() {
+                println!("Successfully compiled with gcc.");
+                return true;
+            } else {
+                eprintln!("✘ GCC compilation failed.");
+                return false;
+            }
+        }
+        Err(e) => {
+            eprintln!("✘ Failed to run gcc: {}", e);
+            return false;
+        }
+    }
+}
 fn create_new_project(proj: &str) {
     println!("Creating a new project at: {}", proj);
 

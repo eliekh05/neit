@@ -5,6 +5,7 @@ use std::{
     path::Path,
     process::{exit, Command},
 };
+
 #[allow(clippy::redundant_pattern_matching)]
 #[allow(unused_assignments)]
 pub fn comp_c(c_code: &String, proj: &str, target: &str, project_name: &str) {
@@ -29,26 +30,39 @@ pub fn comp_c(c_code: &String, proj: &str, target: &str, project_name: &str) {
         }
     };
 
+    // Collect messages for printing later
+    let mut messages = Vec::new();
+
     // Handle 'c' target first: just write the C code to the file and exit
     if target == "c" {
         match File::create(&output_file) {
             Ok(mut c_file) => {
                 let c_code = cfmt(c_code);
                 if let Err(_) = c_file.write_all(c_code.as_bytes()) {
-                    eprintln!("✘ Eeeek! I tried to write your C code but... it slipped through my fingers.");
-                    eprintln!("→ Hint: Double-check those file permissions before I try again!");
-                    eprintln!("⚙ [Location: comp_c while writing C code to the file]");
+                    messages.push("✘ Eeeek! I tried to write your C code but... it slipped through my fingers.".to_string());
+                    messages.push(
+                        "→ Hint: Double-check those file permissions before I try again!"
+                            .to_string(),
+                    );
+                    messages
+                        .push("⚙ [Location: comp_c while writing C code to the file]".to_string());
+                    print_messages(&messages);
                     exit(1);
                 }
-                println!("ℹ Boom! Your C file is ready at: {:?}", output_file);
+                messages.push(format!(
+                    "ℹ Boom! Your Neit has pukeed out C file which is ready at: {:?}",
+                    output_file
+                ));
             }
             Err(_) => {
-                eprintln!("✘ Uh-oh, I'm blocked! Can't create the C file. File permissions are pesky little things, huh?");
-                eprintln!("→ Hint: File permissions, check 'em out! 🔍");
-                eprintln!("⚙ [Location: comp_c creating C file]");
+                messages.push("✘ Uh-oh, I'm blocked! Can't create the C file. File permissions are pesky little things, huh?".to_string());
+                messages.push("→ Hint: File permissions, check 'em out!".to_string());
+                messages.push("⚙ [Location: comp_c creating C file]".to_string());
+                print_messages(&messages);
                 exit(1);
             }
         }
+        print_messages(&messages);
         return; // Exit after generating the C file
     }
 
@@ -59,16 +73,25 @@ pub fn comp_c(c_code: &String, proj: &str, target: &str, project_name: &str) {
     match File::create(&c_file_path) {
         Ok(mut c_file) => {
             if let Err(_) = c_file.write_all(c_code.as_bytes()) {
-                eprintln!("✘ Uh-oh! I tried to scribble your C code, but something's not right.");
-                eprintln!("→ Hint: Check if the temp file is allowed to be written on.");
-                eprintln!("⚙ [Location: comp_c writing to temp file]");
+                messages.push(
+                    "✘ Uh-oh! I tried to scribble your C code, but something's not right."
+                        .to_string(),
+                );
+                messages.push(
+                    "→ Hint: Check if the temp file is allowed to be written on.".to_string(),
+                );
+                messages.push("⚙ [Location: comp_c writing to temp file]".to_string());
+                print_messages(&messages);
                 exit(1);
             }
         }
         Err(_) => {
-            eprintln!("✘ Aha! Caught in a trap—can't even create the temporary C file.");
-            eprintln!("→ Hint: Permissions? Disk space?");
-            eprintln!("⚙ [Location: comp_c creating temp C file]");
+            messages.push(
+                "✘ Aha! Caught in a trap—can't even create the temporary C file.".to_string(),
+            );
+            messages.push("→ Hint: Permissions? Disk space?".to_string());
+            messages.push("⚙ [Location: comp_c creating temp C file]".to_string());
+            print_messages(&messages);
             exit(1);
         }
     }
@@ -160,32 +183,41 @@ pub fn comp_c(c_code: &String, proj: &str, target: &str, project_name: &str) {
         }
     };
 
-    // Execute the clang command
-    let status = Command::new("clang")
-        .args(clang_args)
-        .status()
-        .expect("Failed to execute `clang` command");
+    // Attempt to execute clang command
+    let clang_status = Command::new("clang").args(&clang_args).status();
 
-    // Check if compilation succeeded
-    if !status.success() {
-        eprintln!("✘ Yikes! Compilation failed for target '{}'.", target);
-        eprintln!("→ Hint: Maybe I forgot something... Check the Clang setup?");
-        eprintln!("⚙ [Location: comp_c executing clang]");
-        exit(1);
-    } else {
-        println!(
-            "ℹ Success! C code compiled for target '{}'. Output at: {:?}",
-            target, output_file
-        );
+    // Check if clang was successful
+    match clang_status {
+        Ok(status) if status.success() => {
+            messages.push(format!(
+                "ℹ Success! Neit code compiled for target '{}'. Output at: {:?}",
+                target, output_file
+            ));
+        }
+        Ok(_) => {
+            messages.push("✘ Oops! Clang failed to compile your code...".to_string());
+            messages.push("→ Hint: Check for errors above this message!".to_string());
+            messages.push("⚙ [Location: comp_c while running clang]".to_string());
+            print_messages(&messages);
+            exit(1);
+        }
+        Err(e) => {
+            messages.push("✘ Whoops! Clang went missing...".to_string());
+            messages.push("→ Hint: Make sure it's installed and in your PATH!".to_string());
+            messages.push(format!("⚙ [Error: {:?}]", e));
+            print_messages(&messages);
+            exit(1);
+        }
     }
 
-    // Clean up the temporary C file
-    fs::remove_file(c_file_path).expect("Failed to delete temporary C file");
+    print_messages(&messages);
+}
+fn print_messages(messages: &[String]) {
+    for msg in messages {
+        println!("{}", msg);
+    }
 }
 
-/* ------------------------------------------- */
-/* FORMAT C CODE */
-/* ------------------------------------------- */
 pub fn cfmt(code: &str) -> String {
     let mut formatted_code = String::new();
     let mut indent_level = 0;
