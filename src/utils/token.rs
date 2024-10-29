@@ -3,9 +3,7 @@ use std::process::exit;
 use crate::utils::case::process_case;
 
 use super::{
-    cond_evaluator::eval_cond,
-    tokens::{func::process_func, input::process_input, print::process_print, var::process_var},
-    types::{Args, Tokens, Vars},
+    cond_evaluator::ccc, tokens::{func::process_func, input::process_input, print::process_print, var::process_var}, types::{Args, Tokens, Vars}
 };
 
 #[allow(unused, irrefutable_let_patterns)]
@@ -25,6 +23,8 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
     let mut ifbody: Vec<String> = Vec::new();
     let mut lastfnd: bool = false;
     let mut ctypecond = false;
+    let mut cmode = false;
+    let mut cmodec : Vec<String> = Vec::new();
 
     for (mut i, mut ln) in code.clone().iter().enumerate() {
         // if i != 0{
@@ -58,20 +58,15 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                 let cond = pts[0];
                 if cond != "last" {
                     if !ctypecond {
-                        let a = eval_cond(cond, &tokens);
+                        let a = ccc(cond, &tokens);
                         match a {
                             Ok(k) => {
-                                println!("cond : {}", k);
-                                println!("ctc -> {}", ctypecond);
-                                println!("to c!");
-                                match eval_cond(&k, &tokens) {
-                                    Ok(cc) => {
-                                        println!("cc -> {}", cc);
-                                        ifbody.push(format!("{}:{}", cc, pts[1]));
-                                    }
-                                    Err(e) => return Err(format!("{}", e)),
-                                }
-                            }
+                             //   println!("cond : {}", k);
+                            //    println!("ctc -> {}", ctypecond);
+                            //    println!("to c!");
+                                        ifbody.push(format!("{}:{}", cond, pts[1]));
+                                
+                           }
                             Err(e) => {
                                 eprintln!("error at line {}\n{}", index, e);
                                 exit(1);
@@ -231,7 +226,20 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                     Err(e) => return Err(e),
                 }
             }
-        } else if ln.starts_with("case ") && ln.ends_with("{") {
+        }
+
+        else if ln.to_uppercase() == "[CMODE]"{
+            cmode = true;
+        }
+        else if ln.to_uppercase() == "![CMODE]"{
+            cmode = false;
+            tokens.push(Tokens::CCode(cmodec.clone()));
+        }
+        else if cmode{
+            cmodec.push(ln.to_string());
+        }
+
+        else if ln.starts_with("case ") && ln.ends_with("{") {
             let cnamee = ln[5..].trim_end_matches("{");
             if !cname.chars().all(|c| c.is_alphabetic() || c == '_') {
                 return Err(format!(

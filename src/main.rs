@@ -207,7 +207,7 @@ fn build_project(proj: &str) {
     match gentoken(code, Vec::new(), false) {
         Ok(tokens) => {
             // Create a channel to receive results from threads
-            println!("tokens : {:?}", tokens);
+            //println!("tokens : {:?}", tokens);
             let (tx, rx) = mpsc::channel();
             let mut handles = vec![];
 
@@ -513,7 +513,7 @@ fn create_new_project(proj: &str) {
             // Create the main.nsc file with a basic template
             match File::create(&main_file) {
                 Ok(mut file) => {
-                    let template = "// This is the main.nsc file for your project\n\n";
+                    let template = "#The Main Neit Source File! Programs starts here";
                     match file.write_all(template.as_bytes()) {
                         Ok(_) => {
                             println!("Created: {}", main_file);
@@ -543,7 +543,7 @@ fn create_new_project(proj: &str) {
             // Create the project.conf file with a basic template
             match File::create(&config_file) {
                 Ok(mut file) => {
-                    let template = "Name: MyProject\nBuild: lin_asm, win_asm\n";
+                    let template = format!("Name: {}\nBuild: {}\n",proj,OS);
                     match file.write_all(template.as_bytes()) {
                         Ok(_) => {
                             println!("Created: {}", config_file);

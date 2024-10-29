@@ -3,10 +3,7 @@
 int fdi(int a, int b);
 double fdf(double a, double b);
 int main() {
+    printf("hello worlddd");
+    return 1;
     return 0;
 }
-void say() {
-    if (1==1) {
-    }
-}
-

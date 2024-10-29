@@ -1,15 +1,9 @@
-may name = ""
-print("> ")
+may name = "joy"
 takein(name)
-[c]
-if{
-    strcmp(name,"joy") ==0 : admin
-    last : wtv
-}
-case admin{
-    println("Hello joy!")
-}
-case wtv{
-        println("Hello {name}!")
 
+if{
+    name == "joy" : case
+}
+case case{
+    println("hi")
 }

@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-#[derive(Debug)] // This allows us to print the structure easily with `dbg!`
+#[derive(Debug)]
 pub struct Grammar {
     pub def: String,
     pub new: String,
@@ -15,25 +15,20 @@ pub fn process_files(
     let mut nc = String::new();
     let defengine = gen_grm();
     let mut usrgrm: Vec<Grammar> = Vec::new();
-
-    // Process the input grammar file
     if !input_file.is_empty() {
         process_grammar_file(input_file, &mut usrgrm);
     }
 
-    // Process the user grammar file if provided
     if let Some(file) = user_grammar_file {
         process_grammar_file(file, &mut usrgrm);
     }
-
-    // Process the neit file if provided
     if let Some(file) = neit_file {
         nc = process_neit_file(file, &usrgrm, &defengine);
     }
     nc
 }
 
-// Function to process grammar files
+
 pub fn process_grammar_file(file_path: &str, usrgrm: &mut Vec<Grammar>) {
     let mut file = File::open(file_path).unwrap_or_else(|e| {
         eprintln!(
@@ -55,12 +50,12 @@ pub fn process_grammar_file(file_path: &str, usrgrm: &mut Vec<Grammar>) {
     let mut index = 1;
     for ln in content.lines() {
         if ln.starts_with('#') {
-            continue; // Skip comments
+            continue;
         }
 
         let mut parts = ln.split('~');
-        let ogv = parts.next().unwrap_or("").trim(); // Original value
-        let nv = parts.next().unwrap_or("").trim(); // New value
+        let ogv = parts.next().unwrap_or("").trim();
+        let nv = parts.next().unwrap_or("").trim();
 
         if parts.next().is_some() || ogv.is_empty() || nv.is_empty() {
             eprintln!(
@@ -81,7 +76,7 @@ pub fn process_grammar_file(file_path: &str, usrgrm: &mut Vec<Grammar>) {
 #[allow(unused)]
 // Function to process the neit file
 pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Grammar]) -> String {
-    let mut nc = String::new(); // This will store the final processed content
+    let mut nc = String::new();
     let mut file = File::open(file_path).unwrap_or_else(|_| {
         eprintln!("Could not open neit file '{}'", file_path);
         std::process::exit(1);
@@ -93,16 +88,12 @@ pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Gramm
         std::process::exit(1);
     }
 
-    // Store all processed lines here
     let mut processed_lines = Vec::new();
-
-    // Split the content by lines
     for line in content.lines() {
         let mut modified_line = String::new();
         let mut current_word = String::new();
         let mut in_string_mode = false;
 
-        // Now process each character in the current line
         for c in line.chars() {
             if c == '"' {
                 in_string_mode = !in_string_mode;
@@ -126,25 +117,20 @@ pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Gramm
             }
         }
 
-        // Append any remaining word after processing the line
         if !current_word.is_empty() {
             let replaced_word = replace_word(&current_word, usrgrm, defengine);
             modified_line.push_str(&replaced_word);
         }
 
-        // Store the processed line
         processed_lines.push(modified_line);
     }
 
-    // Join all the processed lines with new line characters
     nc = processed_lines.join("\n");
     nc
 }
 
-// Helper function to replace a word if it matches grammar definitions
 fn replace_word(word: &str, usrgrm: &[Grammar], defengine: &[Grammar]) -> String {
     for mapping in usrgrm.iter().chain(defengine.iter()) {
-        println!("word : {} | mapping : {:?}", word, mapping);
         if word == mapping.new {
             return mapping.def.clone();
         }
@@ -152,7 +138,6 @@ fn replace_word(word: &str, usrgrm: &[Grammar], defengine: &[Grammar]) -> String
     word.to_string()
 }
 
-// Function to generate default grammar mappings
 pub fn gen_grm() -> Vec<Grammar> {
     vec![
         Grammar {
@@ -168,12 +153,45 @@ pub fn gen_grm() -> Vec<Grammar> {
             new: "must".to_string(),
         },
         Grammar {
-            def: "=".to_string(),
-            new: "=".to_string(),
-        },
-        Grammar {
             def: "pub".to_string(),
             new: "pub".to_string(),
+        },
+        Grammar {
+            def: "if".to_string(),
+            new: "if".to_string(),
+        },
+        Grammar {
+            def: "case".to_string(),
+            new: "case".to_string(),
+        },
+        Grammar {
+            def: "[cmode]".to_string(),
+            new: "[cmode]".to_string(),
+        },
+
+        Grammar {
+            def: "![cmode]".to_string(),
+            new: "![cmode]".to_string(),
+        },
+
+        Grammar {
+            def: "[c]".to_string(),
+            new: "[c]".to_string(),
+        },
+
+        Grammar {
+            def: "![c]".to_string(),
+            new: "![c]".to_string(),
+        },
+
+        Grammar {
+            def: "{".to_string(),
+            new: "{".to_string(),
+        },
+
+        Grammar {
+            def: "}".to_string(),
+            new: "}".to_string(),
         },
         Grammar {
             def: "takein".to_string(),

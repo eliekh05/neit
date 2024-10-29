@@ -1,14 +1,22 @@
 use super::types::{Tokens, Vars};
 
-pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
+// Required types
+#[derive(Debug, Clone)]
+pub enum CondT {
+    STR(String),
+    INT(i32),
+    F(f64),
+}
+
+// Function to check if a given string is a valid C-style condition
+pub fn ccc(cond: &str, vars: &[Tokens]) -> Result<(), String> {
     let mut curwrd = String::new();
-    let mut result = String::new();
-    let binding = cond.replace(" ", "");
+    let mut current_type: Option<CondT> = None;
+    let binding = cond.replace(" ", ""); // Remove whitespace for easier parsing
 
     let mut chars = binding.chars().enumerate().peekable();
-    let mut current_type: Option<String> = None;
     let _operators = ["!=", "==", ">=", "<=", ">", "<"];
-    let mut in_strcmp = false; // Flag to track if we're inside a strcmp operation
+    let mut in_strcmp = false; // Flag for string comparison
 
     while let Some((i, c)) = chars.next() {
         let nxtc = chars.peek().map(|(_, next_c)| *next_c);
@@ -20,7 +28,7 @@ pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
                         if let Some(ref cur_type) = current_type {
                             if !is_type_compatible(cur_type, &var_type) {
                                 return Err(format!(
-                                    "Type mismatch at index {}: expected type '{}', found type '{}'",
+                                    "Type mismatch at index {}: expected '{:?}', found '{:?}'",
                                     i, cur_type, var_type
                                 ));
                             }
@@ -28,13 +36,9 @@ pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
                             current_type = Some(var_type.clone());
                         }
 
-                        // Handle strcmp for string comparisons
-                        if current_type == Some("string".to_string()) && in_strcmp {
-                            result.push_str(&curwrd);
-                            result.push_str(")");
+                        // If current_type is STR and we're in a strcmp, close strcmp call
+                        if matches!(current_type, Some(CondT::STR(_))) && in_strcmp {
                             in_strcmp = false;
-                        } else {
-                            result.push_str(&curwrd);
                         }
                     } else {
                         return Err(format!("Invalid word at index {}: '{}'", i, curwrd));
@@ -42,30 +46,22 @@ pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
                 }
                 curwrd.clear();
 
+                // Collect operator and handle accordingly
                 if let Some(op) = nxtc {
                     let mut operator = c.to_string();
                     operator.push(op);
                     match operator.as_str() {
                         "!=" | "==" => {
                             chars.next(); // Move past the operator
-                            if let Some(ref cur_type) = current_type {
-                                if cur_type == "string" {
-                                    result.push_str("strcmp("); // Begin strcmp
-                                    result.push_str(&curwrd); // Add the first operand
-                                    result.push_str(","); // Prepare for the second operand
-                                    in_strcmp = true; // Set flag indicating inside strcmp
-                                    continue; // Continue to the next token
-                                }
+                            if matches!(current_type, Some(CondT::STR(_))) {
+                                // Handle strcmp for strings
+                                in_strcmp = true;
                             }
-                            result.push_str(&operator);
                         }
-                        ">=" | "<=" if current_type != Some("string".to_string()) => {
+                        ">=" | "<=" if !matches!(current_type, Some(CondT::STR(_))) => {
                             chars.next();
-                            result.push_str(&operator);
                         }
-                        ">" | "<" if current_type != Some("string".to_string()) => {
-                            result.push(c);
-                        }
+                        ">" | "<" if !matches!(current_type, Some(CondT::STR(_))) => {}
                         "=<" | "=>" | "=!" | "===" => {
                             return Err(format!(
                                 "Invalid operator at index {}: '{}'. Did you mean '{}'?",
@@ -74,39 +70,7 @@ pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
                                 correct_operator(&operator)
                             ));
                         }
-                        "><" => {
-                            return Err(format!(
-                                "Invalid operator at index {}: '{}'. Did you mean '!='?",
-                                i, operator
-                            ));
-                        }
-                        "!!" => {
-                            return Err(format!(
-                                "Invalid operator at index {}: '{}'. Did you mean '!'?",
-                                i, operator
-                            ));
-                        }
-                        "<>" => {
-                            return Err(format!(
-                                "Invalid operator at index {}: '{}'. Did you mean '!='?",
-                                i, operator
-                            ));
-                        }
-                        "=" => {
-                            return Err(format!(
-                                "Invalid operator at index {}: single '=' is not allowed",
-                                i
-                            ));
-                        }
-                        "!" => {
-                            return Err(format!(
-                                "Invalid operator at index {}: '!' must be followed by '=' (!=)",
-                                i
-                            ));
-                        }
-                        _ => {
-                            result.push(c);
-                        }
+                        _ => {}
                     }
                 }
             }
@@ -121,55 +85,42 @@ pub fn eval_cond(cond: &str, vars: &[Tokens]) -> Result<String, String> {
             if let Some(ref cur_type) = current_type {
                 if !is_type_compatible(cur_type, &var_type) {
                     return Err(format!(
-                        "Final type mismatch: expected type '{}', found type '{}' for '{}'",
+                        "Final type mismatch: expected '{:?}', found '{:?}' for '{}'",
                         cur_type, var_type, curwrd
                     ));
                 }
-            }
-
-            // Handle strcmp for final word
-            if current_type == Some("string".to_string()) && in_strcmp {
-                result.push_str(&curwrd);
-                result.push_str(")");
-            } else {
-                result.push_str(&curwrd);
             }
         } else {
             return Err(format!("Invalid word in final check: '{}'", curwrd));
         }
     }
 
-    Ok(result)
+    Ok(())
 }
 
-fn check_word_type(word: &str, vars: &[Tokens]) -> Option<String> {
+// Checks the type of a word based on known variable types in `vars`
+fn check_word_type(word: &str, vars: &[Tokens]) -> Option<CondT> {
     if word.starts_with('"') && word.ends_with('"') {
-        return Some("string".to_string());
+        return Some(CondT::STR(word.to_string()));
     }
 
-    if word.parse::<i32>().is_ok() {
-        return Some("int".to_string());
+    if let Ok(int_val) = word.parse::<i32>() {
+        return Some(CondT::INT(int_val));
     }
 
-    if word.parse::<f64>().is_ok() {
-        return Some("float".to_string());
+    if let Ok(float_val) = word.parse::<f64>() {
+        return Some(CondT::F(float_val));
     }
 
     for token in vars {
         if let Tokens::Var(var_type, var_name, _) = token {
             if var_name == word {
-                match var_type {
-                    Vars::STR(_) => {
-                        return Some("string".to_string());
-                    }
-                    Vars::INT(_) => {
-                        return Some("int".to_string());
-                    }
-                    Vars::F(_) => {
-                        return Some("float".to_string());
-                    }
-                    _ => {}
-                }
+                return match var_type {
+                    Vars::STR(_) => Some(CondT::STR(var_name.clone())),
+                    Vars::INT(_) => Some(CondT::INT(0)),
+                    Vars::F(_) => Some(CondT::F(0.0)),
+                    _ => None,
+                };
             }
         }
     }
@@ -177,20 +128,25 @@ fn check_word_type(word: &str, vars: &[Tokens]) -> Option<String> {
     None
 }
 
-fn is_type_compatible(current_type: &str, new_type: &str) -> bool {
-    (current_type == new_type)
-        || (current_type == "float" && new_type == "int")
-        || (current_type == "int" && new_type == "float")
-        || (current_type == "string" && new_type == "string")
+// Checks compatibility of two condT types
+fn is_type_compatible(current_type: &CondT, new_type: &CondT) -> bool {
+    matches!(
+        (current_type, new_type),
+        (CondT::STR(_), CondT::STR(_)) |
+        (CondT::INT(_), CondT::INT(_)) |
+        (CondT::F(_), CondT::F(_)) |
+        (CondT::INT(_), CondT::F(_)) |
+        (CondT::F(_), CondT::INT(_))
+    )
 }
 
+// Suggests corrections for common operator mistakes
 fn correct_operator(invalid_op: &str) -> &str {
     match invalid_op {
         "=<" => "<=",
         "=>" => ">=",
         "=!" => "!=",
         "===" => "==",
-        "==!" => "!=",
         "<>" => "!=",
         _ => "",
     }
