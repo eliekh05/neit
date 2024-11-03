@@ -3,7 +3,6 @@
 int fdi(int a, int b);
 double fdf(double a, double b);
 int main() {
-    printf("hello worlddd");
-    return 1;
+    printf("hi\n");
     return 0;
 }

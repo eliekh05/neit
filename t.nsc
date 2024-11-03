@@ -1,4 +1,7 @@
 fn hi()
+{
     println("hi")
+}
 fn hi()
+{
     #code

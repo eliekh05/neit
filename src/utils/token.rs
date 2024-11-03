@@ -129,7 +129,7 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
 
         // Handle function definitions
         if (ln.trim().starts_with("pub fn") || ln.trim().starts_with("fn "))
-            && ln.trim().ends_with("{")
+            
         {
             if in_function {
                 return Err(format!(
@@ -227,7 +227,13 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                 }
             }
         }
+        else if ln.trim() == "}"{
+            continue;
+        }
 
+        else if ln.trim() == "{"{
+            continue;
+        }
         else if ln.to_uppercase() == "[CMODE]"{
             cmode = true;
         }

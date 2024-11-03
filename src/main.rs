@@ -197,8 +197,12 @@ fn build_project(proj: &str) {
         let mut usrgrm: Vec<Grammar> = Vec::new();
         let defgen = gen_grm();
         process_grammar_file(&format!("{}/{}", proj, input_grammar_file), &mut usrgrm);
-        updated_content = process_neit_file(&main_file_path, &usrgrm, &defgen);
+        updated_content = process_neit_file(&main_file_path, &usrgrm, &defgen,true);
     }
+    println!("main code : {}",updated_content);
+    let mut ffff = File::create("t.nsc").unwrap();
+    ffff.write_all(updated_content.as_bytes()).unwrap();
+
 
     let code: Vec<String> = updated_content
         .lines()
@@ -330,8 +334,9 @@ fn run_project(proj: &str) {
         let mut usrgrm: Vec<Grammar> = Vec::new();
         let defgen = gen_grm();
         process_grammar_file(&format!("{}/{}", proj, igf), &mut usrgrm);
-        let nmc = process_neit_file(&mf, &usrgrm, &defgen);
+        let nmc = process_neit_file(&mf, &usrgrm, &defgen,true);
         mc = nmc;
+        println!("main code : {}",mc);
     }
 
     let cds: Vec<String> = mc.lines().map(|s| s.to_owned()).collect();
