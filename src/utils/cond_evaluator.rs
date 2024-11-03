@@ -132,11 +132,11 @@ fn check_word_type(word: &str, vars: &[Tokens]) -> Option<CondT> {
 fn is_type_compatible(current_type: &CondT, new_type: &CondT) -> bool {
     matches!(
         (current_type, new_type),
-        (CondT::STR(_), CondT::STR(_)) |
-        (CondT::INT(_), CondT::INT(_)) |
-        (CondT::F(_), CondT::F(_)) |
-        (CondT::INT(_), CondT::F(_)) |
-        (CondT::F(_), CondT::INT(_))
+        (CondT::STR(_), CondT::STR(_))
+            | (CondT::INT(_), CondT::INT(_))
+            | (CondT::F(_), CondT::F(_))
+            | (CondT::INT(_), CondT::F(_))
+            | (CondT::F(_), CondT::INT(_))
     )
 }
 

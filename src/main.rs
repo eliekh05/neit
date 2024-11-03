@@ -139,6 +139,7 @@ fn build_project(proj: &str) {
     let mut build_targets = Vec::new();
     let mut input_grammar_file = String::new();
     let mut use_grammar_file = String::new();
+    let mut pym = false;
 
     for line in config_content.lines() {
         if line.starts_with("Name:") {
@@ -151,8 +152,30 @@ fn build_project(proj: &str) {
                 .collect();
         } else if line.starts_with("input_grammar=") {
             input_grammar_file = line["input_grammar=".len()..].trim().to_string();
-        } else if line.starts_with("use_grammar=") {
+        }
+         
+        else if line.starts_with("use_grammar=") {
             use_grammar_file = line["use_grammar=".len()..].trim().to_string();
+        }
+        else {
+            if line.trim().starts_with("blockmode") {
+                let parts: Vec<&str> = line.split('=').collect();
+            
+                if parts.len() != 2 {
+                    eprintln!("Error: Expected exactly two parts separated by '='. Found {} part(s): {:?}", parts.len(), parts);
+                } else {
+                    let second_part = parts[1].trim();
+                    if second_part == "indent" {
+                        pym = true;
+                    } else if second_part == "brace" {
+                        pym = false; 
+                    } else {
+                        eprintln!("Error: Invalid mode '{}' specified. Expected 'indent' or 'brace'.", second_part);
+                        eprintln!("Did you mean 'indent' or 'brace'?");
+                    }
+                }
+            }
+            
         }
     }
 
@@ -197,12 +220,11 @@ fn build_project(proj: &str) {
         let mut usrgrm: Vec<Grammar> = Vec::new();
         let defgen = gen_grm();
         process_grammar_file(&format!("{}/{}", proj, input_grammar_file), &mut usrgrm);
-        updated_content = process_neit_file(&main_file_path, &usrgrm, &defgen,true);
+        updated_content = process_neit_file(&main_file_path, &usrgrm, &defgen, true);
     }
-    println!("main code : {}",updated_content);
+    println!("main code : {}", updated_content);
     let mut ffff = File::create("t.nsc").unwrap();
     ffff.write_all(updated_content.as_bytes()).unwrap();
-
 
     let code: Vec<String> = updated_content
         .lines()
@@ -313,12 +335,31 @@ fn run_project(proj: &str) {
     let mut icm = false;
     let mut igf = String::new();
     let mut ugf = String::new();
-
+    let mut pym = false;
     for cfc in cc.lines() {
         if cfc.trim().starts_with("[sec-start] grammar") {
             icm = true;
         } else if cfc.trim().starts_with("[sec-end] grammar") {
             icm = false;
+        } else if !icm {
+            if cfc.trim().starts_with("blockmode") {
+                let parts: Vec<&str> = cfc.split('=').collect();
+            
+                if parts.len() != 2 {
+                    eprintln!("Error: Expected exactly two parts separated by '='. Found {} part(s): {:?}", parts.len(), parts);
+                } else {
+                    let second_part = parts[1].trim();
+                    if second_part == "indent" {
+                        pym = true;
+                    } else if second_part == "brace" {
+                        pym = false; 
+                    } else {
+                        eprintln!("Error: Invalid mode '{}' specified. Expected 'indent' or 'brace'.", second_part);
+                        eprintln!("Did you mean 'indent' or 'brace'?");
+                    }
+                }
+            }
+            
         } else {
             if icm {
                 if cfc.trim().starts_with("input_grammar=") {
@@ -334,9 +375,9 @@ fn run_project(proj: &str) {
         let mut usrgrm: Vec<Grammar> = Vec::new();
         let defgen = gen_grm();
         process_grammar_file(&format!("{}/{}", proj, igf), &mut usrgrm);
-        let nmc = process_neit_file(&mf, &usrgrm, &defgen,true);
+        let nmc = process_neit_file(&mf, &usrgrm, &defgen, pym);
         mc = nmc;
-        println!("main code : {}",mc);
+        println!("main code : {}", mc);
     }
 
     let cds: Vec<String> = mc.lines().map(|s| s.to_owned()).collect();
@@ -548,7 +589,7 @@ fn create_new_project(proj: &str) {
             // Create the project.conf file with a basic template
             match File::create(&config_file) {
                 Ok(mut file) => {
-                    let template = format!("Name: {}\nBuild: {}\n",proj,OS);
+                    let template = format!("Name: {}\nBuild: {}\n", proj, OS);
                     match file.write_all(template.as_bytes()) {
                         Ok(_) => {
                             println!("Created: {}", config_file);

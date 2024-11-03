@@ -180,7 +180,12 @@ fn clear_screen() {
 }
 
 fn run_command(command: &str, args: &[&str]) -> bool {
-    match Command::new(command).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status() {
+    match Command::new(command)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    {
         Ok(status) => status.success(),
         Err(_) => {
             eprintln!("Error: {} is not installed or not found in PATH.", command);

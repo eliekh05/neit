@@ -21,7 +21,7 @@ pub fn process_files(
     println!("User grammar file: {:?}", user_grammar_file);
     println!("Neit file: {:?}", neit_file);
     println!("Is PyMod: {:?}", ispymod);
-    
+
     if !input_file.is_empty() {
         process_grammar_file(input_file, &mut usrgrm);
     }
@@ -29,24 +29,30 @@ pub fn process_files(
     if let Some(file) = user_grammar_file {
         process_grammar_file(file, &mut usrgrm);
     }
-    
+
     if let Some(file) = neit_file {
         nc = process_neit_file(file, &usrgrm, &defengine, ispymod);
     }
-    
+
     nc
 }
 
 pub fn process_grammar_file(file_path: &str, usrgrm: &mut Vec<Grammar>) {
     println!("Processing grammar file: {}", file_path);
     let mut file = File::open(file_path).unwrap_or_else(|e| {
-        eprintln!("Could not find the grammar file '{}'. Ensure it exists: {}", file_path, e);
+        eprintln!(
+            "Could not find the grammar file '{}'. Ensure it exists: {}",
+            file_path, e
+        );
         std::process::exit(1);
     });
 
     let mut content = String::new();
     if let Err(e) = file.read_to_string(&mut content) {
-        eprintln!("Error reading the source grammar file '{}': {}", file_path, e);
+        eprintln!(
+            "Error reading the source grammar file '{}': {}",
+            file_path, e
+        );
         std::process::exit(1);
     }
 
@@ -80,7 +86,12 @@ pub fn process_grammar_file(file_path: &str, usrgrm: &mut Vec<Grammar>) {
     println!("Successfully processed grammar file: {}", file_path);
 }
 
-pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Grammar], ispymod: bool) -> String {
+pub fn process_neit_file(
+    file_path: &str,
+    usrgrm: &[Grammar],
+    defengine: &[Grammar],
+    ispymod: bool,
+) -> String {
     println!("Processing NEIT file: {}", file_path);
     let mut nc = String::new();
     let mut file = File::open(file_path).unwrap_or_else(|_| {
@@ -100,8 +111,11 @@ pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Gramm
     if ispymod {
         for line in content.lines() {
             let line_indent = count_leading_spaces(line);
-            println!("Processing line: '{}' with indent level: {}", line, line_indent);
-            
+            println!(
+                "Processing line: '{}' with indent level: {}",
+                line, line_indent
+            );
+
             // Add closing braces based on indentation levels
             while line_indent < prev_indent {
                 processed_lines.push("}".to_string());
@@ -147,7 +161,10 @@ pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Gramm
                     if !current_word.is_empty() {
                         let replaced_word = replace_word(&current_word, usrgrm, defengine);
                         modified_line.push_str(&replaced_word);
-                        println!("Replaced word: '{}' with: '{}'", current_word, replaced_word);
+                        println!(
+                            "Replaced word: '{}' with: '{}'",
+                            current_word, replaced_word
+                        );
                         current_word.clear();
                     }
                     modified_line.push(c);
@@ -160,7 +177,10 @@ pub fn process_neit_file(file_path: &str, usrgrm: &[Grammar], defengine: &[Gramm
         if !current_word.is_empty() {
             let replaced_word = replace_word(&current_word, usrgrm, defengine);
             modified_line.push_str(&replaced_word);
-            println!("Replaced last word: '{}' with: '{}'", current_word, replaced_word);
+            println!(
+                "Replaced last word: '{}' with: '{}'",
+                current_word, replaced_word
+            );
         }
 
         final_lines.push(modified_line);
@@ -189,21 +209,69 @@ fn replace_word(word: &str, usrgrm: &[Grammar], defengine: &[Grammar]) -> String
 
 pub fn gen_grm() -> Vec<Grammar> {
     vec![
-        Grammar { def: "fn".to_string(), new: "fn".to_string() },
-        Grammar { def: "may".to_string(), new: "may".to_string() },
-        Grammar { def: "must".to_string(), new: "must".to_string() },
-        Grammar { def: "pub".to_string(), new: "pub".to_string() },
-        Grammar { def: "if".to_string(), new: "if".to_string() },
-        Grammar { def: "case".to_string(), new: "case".to_string() },
-        Grammar { def: "[cmode]".to_string(), new: "[cmode]".to_string() },
-        Grammar { def: "![cmode]".to_string(), new: "![cmode]".to_string() },
-        Grammar { def: "[c]".to_string(), new: "[c]".to_string() },
-        Grammar { def: "![c]".to_string(), new: "![c]".to_string() },
-        Grammar { def: "{".to_string(), new: "{".to_string() },
-        Grammar { def: "}".to_string(), new: "}".to_string() },
-        Grammar { def: "takein".to_string(), new: "takein".to_string() },
-        Grammar { def: "println".to_string(), new: "println".to_string() },
-        Grammar { def: "print".to_string(), new: "print".to_string() },
-        Grammar { def: "=".to_string(), new: "=".to_string() },
+        Grammar {
+            def: "fn".to_string(),
+            new: "fn".to_string(),
+        },
+        Grammar {
+            def: "may".to_string(),
+            new: "may".to_string(),
+        },
+        Grammar {
+            def: "must".to_string(),
+            new: "must".to_string(),
+        },
+        Grammar {
+            def: "pub".to_string(),
+            new: "pub".to_string(),
+        },
+        Grammar {
+            def: "if".to_string(),
+            new: "if".to_string(),
+        },
+        Grammar {
+            def: "case".to_string(),
+            new: "case".to_string(),
+        },
+        Grammar {
+            def: "[cmode]".to_string(),
+            new: "[cmode]".to_string(),
+        },
+        Grammar {
+            def: "![cmode]".to_string(),
+            new: "![cmode]".to_string(),
+        },
+        Grammar {
+            def: "[c]".to_string(),
+            new: "[c]".to_string(),
+        },
+        Grammar {
+            def: "![c]".to_string(),
+            new: "![c]".to_string(),
+        },
+        Grammar {
+            def: "{".to_string(),
+            new: "{".to_string(),
+        },
+        Grammar {
+            def: "}".to_string(),
+            new: "}".to_string(),
+        },
+        Grammar {
+            def: "takein".to_string(),
+            new: "takein".to_string(),
+        },
+        Grammar {
+            def: "println".to_string(),
+            new: "println".to_string(),
+        },
+        Grammar {
+            def: "print".to_string(),
+            new: "print".to_string(),
+        },
+        Grammar {
+            def: "=".to_string(),
+            new: "=".to_string(),
+        },
     ]
 }

@@ -31,7 +31,14 @@ pub fn to_c(tokens: &[Tokens]) -> String {
                 .collect();
 
             funs.push_str(&format!("void {}({}) {{\n", fun.name, make_args(&fun.args)));
-            process(&mut funs, &arg_vars, true, &fun.code, &mut declared_vars,&mut ccind);
+            process(
+                &mut funs,
+                &arg_vars,
+                true,
+                &fun.code,
+                &mut declared_vars,
+                &mut ccind,
+            );
             funs.push_str("}\n\n");
         }
     }
@@ -73,18 +80,18 @@ fn process(
     iff: bool,
     tokens: &[Tokens],
     declared_vars: &mut HashSet<String>,
-    cci : &mut i32,
+    cci: &mut i32,
 ) {
     let mut ini = 0;
     for token in tokens {
         match token {
             Tokens::IFun(_name, code) if iff => {
                 let mut gcc = String::new();
-                process(&mut gcc, arg_vars, false, code, declared_vars,cci);
+                process(&mut gcc, arg_vars, false, code, declared_vars, cci);
                 func.push_str(&gcc);
             }
             Tokens::CCode(c) => {
-                func.push_str(format!("{}\n",c.join("\n")).as_str());
+                func.push_str(format!("{}\n", c.join("\n")).as_str());
             }
             Tokens::Cond(conds) => {
                 let mut condc = String::new();
@@ -116,7 +123,7 @@ fn process(
                             if let Tokens::IFun(n, c) = t {
                                 if n == code {
                                     let mut addc = String::new();
-                                    process(&mut addc, arg_vars, true, c, declared_vars,cci);
+                                    process(&mut addc, arg_vars, true, c, declared_vars, cci);
                                     else_block.push_str(&format!("{}\n", addc));
                                 }
                             }
@@ -134,7 +141,7 @@ fn process(
                         if let Tokens::IFun(n, c) = t {
                             if n == code {
                                 let mut addc = String::new();
-                                process(&mut addc, arg_vars, true, c, declared_vars,cci);
+                                process(&mut addc, arg_vars, true, c, declared_vars, cci);
                                 condc.push_str(&addc);
                             }
                         }
