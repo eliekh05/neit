@@ -26,13 +26,13 @@ pub fn cli() {
 
     loop {
         // Debugging prints to check the current state of tokens and variables
-        println!("str_tkns b4 clear : {:?}", str_tkns);
-        println!("vars_clct : {:?}", vars_clct);
+        //println!("str_tkns b4 clear : {:?}", str_tkns);
+        //println!("vars_clct : {:?}", vars_clct);
 
         // Clear str_tkns if store_mode is off
         if !store_mode {
             str_tkns.clear();
-            println!("str_tkns after clear : {:?}", str_tkns);
+            //println!("str_tkns after clear : {:?}", str_tkns);
         }
 
         let mut cmd = String::new();
@@ -180,7 +180,12 @@ fn clear_screen() {
 }
 
 fn run_command(command: &str, args: &[&str]) -> bool {
-    match Command::new(command).args(args).status() {
+    match Command::new(command)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    {
         Ok(status) => status.success(),
         Err(_) => {
             eprintln!("Error: {} is not installed or not found in PATH.", command);

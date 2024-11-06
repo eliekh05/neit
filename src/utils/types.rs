@@ -11,7 +11,8 @@ pub enum Tokens {
     Revar(String, String),   /* Name , Value */
     In(String),              /* String -> Variable name to take input in */
     IFun(String, Vec<Tokens>),
-    Cond(Vec<String>), /* Vec<String> -> Conditions and case to call*/
+    Cond(Vec<String>),  /* Vec<String> -> Conditions and case to call*/
+    CCode(Vec<String>), /* Vec<String> -> C Codes */
 }
 
 impl fmt::Display for Tokens {
@@ -37,6 +38,15 @@ impl fmt::Display for Tokens {
             }
             Tokens::Revar(name, value) => write!(f, "Reassign Variable: {} = {}\n", name, value),
             Tokens::In(value) => write!(f, "Input: {}\n", value),
+            Tokens::CCode(c) => {
+                write!(
+                    f,
+                    "Plain C Code:\n{:?}",
+                    for c in c {
+                        println!("{}", format!("{}", c));
+                    }
+                )
+            }
             Tokens::IFun(var_name, tokens) => {
                 let tokens_display = tokens
                     .iter()

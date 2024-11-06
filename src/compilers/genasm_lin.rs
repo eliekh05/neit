@@ -165,7 +165,7 @@ fn parse(
         Tokens::Print(txt, name) => {
             let processed_text = txt;
             let cprint = format!("printf({});", p_to_c(&processed_text, &tokens.clone()));
-            println!("cprint : {}", cprint);
+            //println!("cprint : {}", cprint);
 
             // Generate assembly for cprint
             let print_code = generate_print_asm(&cprint, name, counter, data, added_data);

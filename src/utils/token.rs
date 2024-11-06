@@ -3,13 +3,17 @@ use std::process::exit;
 use crate::utils::case::process_case;
 
 use super::{
-    cond_evaluator::eval_cond,
+    cond_evaluator::ccc,
     tokens::{func::process_func, input::process_input, print::process_print, var::process_var},
     types::{Args, Tokens, Vars},
 };
 
 #[allow(unused, irrefutable_let_patterns)]
-pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Result<Vec<Tokens>, String> {
+pub fn gentoken(
+    mut code: Vec<String>,
+    casetkns: Vec<Tokens>,
+    fc: bool,
+) -> Result<Vec<Tokens>, String> {
     let mut index: i64 = 0;
     let mut tokens: Vec<Tokens> = casetkns;
     let mut ct: Vec<Tokens> = Vec::new();
@@ -25,6 +29,8 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
     let mut ifbody: Vec<String> = Vec::new();
     let mut lastfnd: bool = false;
     let mut ctypecond = false;
+    let mut cmode = false;
+    let mut cmodec: Vec<String> = Vec::new();
 
     for (mut i, mut ln) in code.clone().iter().enumerate() {
         // if i != 0{
@@ -58,19 +64,13 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                 let cond = pts[0];
                 if cond != "last" {
                     if !ctypecond {
-                        let a = eval_cond(cond, &tokens);
+                        let a = ccc(cond, &tokens);
                         match a {
                             Ok(k) => {
-                                println!("cond : {}", k);
-                                println!("ctc -> {}", ctypecond);
-                                println!("to c!");
-                                match eval_cond(&k, &tokens) {
-                                    Ok(cc) => {
-                                        println!("cc -> {}", cc);
-                                        ifbody.push(format!("{}:{}", cc, pts[1]));
-                                    }
-                                    Err(e) => return Err(format!("{}", e)),
-                                }
+                                //   println!("cond : {}", k);
+                                //    println!("ctc -> {}", ctypecond);
+                                //    println!("to c!");
+                                ifbody.push(format!("{}:{}", cond, pts[1]));
                             }
                             Err(e) => {
                                 eprintln!("error at line {}\n{}", index, e);
@@ -87,8 +87,7 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                         return Err(format!("Last condition already evaluated!"));
                     }
                 }
-                if brace_depth != 0{
-
+                if brace_depth != 0 {
                     brace_depth -= 1;
                 }
 
@@ -133,9 +132,7 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
         }
 
         // Handle function definitions
-        if (ln.trim().starts_with("pub fn") || ln.trim().starts_with("fn "))
-            && ln.trim().ends_with("{")
-        {
+        if (ln.trim().starts_with("pub fn") || ln.trim().starts_with("fn ")) {
             if in_function {
                 return Err(format!(
                     "{} Error: Nested Function Detected!\n\
@@ -167,9 +164,7 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
         } else if in_function {
             //println!("\nadding ln to func : \n{}", ln);
             //println!("brace depth before : {}", brace_depth);
-            if brace_depth == 0{
-                
-            } 
+            if brace_depth == 0 {}
             function_body.push(ln);
             brace_depth += ln.matches('{').count();
             brace_depth -= ln.matches('}').count();
@@ -231,6 +226,17 @@ pub fn gentoken(mut code: Vec<String>, casetkns: Vec<Tokens>, fc: bool) -> Resul
                     Err(e) => return Err(e),
                 }
             }
+        } else if ln.trim() == "}" {
+            continue;
+        } else if ln.trim() == "{" {
+            continue;
+        } else if ln.to_uppercase() == "[CMODE]" {
+            cmode = true;
+        } else if ln.to_uppercase() == "![CMODE]" {
+            cmode = false;
+            tokens.push(Tokens::CCode(cmodec.clone()));
+        } else if cmode {
+            cmodec.push(ln.to_string());
         } else if ln.starts_with("case ") && ln.ends_with("{") {
             let cnamee = ln[5..].trim_end_matches("{");
             if !cname.chars().all(|c| c.is_alphabetic() || c == '_') {
