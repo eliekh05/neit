@@ -1,0 +1,1 @@
+rm -rf ./output.c ./output.o ./output ./joy ./joy.c

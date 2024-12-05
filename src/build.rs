@@ -59,6 +59,7 @@ fn build_file(args: &[String], src: &Path) {
     println!("{}", "Lexing file...".green());
     let mut toks = Tokens::new();
     lex(&code, &mut toks);
+    //println!("[DEBUG] toks : {:?}", toks);
 
     println!("{}", "Parsing file...".green());
     let mut nst = parse(
@@ -66,7 +67,9 @@ fn build_file(args: &[String], src: &Path) {
         &code.split("\n").collect::<Vec<&str>>(),
         src.display().to_string().as_str(),
         true,
+        &mut Vec::new()
     );
+    //println!("[DEBUG] nst : {:?}", nst);
 
     println!("{}", "Parsing CLI arguments...".green());
     let _target_os = parse_target_os(args);
@@ -74,7 +77,7 @@ fn build_file(args: &[String], src: &Path) {
     let output_file = parse_output(args).trim().to_string();
 
     println!("{}", "Generating code...".green());
-    let ccode = codegen(&mut nst, true,true);
+    let ccode = codegen(&mut nst, true,true,true);
 
     println!("{}", "Writing C code to file...".green());
     write_to_file(&ccode, &output_file);
@@ -172,7 +175,7 @@ fn build_clang_command(args: &[String], output_file: &str, _src: &Path, opt_leve
     let opt_flags = get_optimization_flags(opt_level);
     cmd.args(opt_flags);
     
-    println!("[DEBUG] cmd: {:?}", cmd);
+    //println!("[DEBUG] cmd: {:?}", cmd);
     cmd
 }
 
@@ -236,7 +239,7 @@ fn get_optimization_flags(level: i32) -> Vec<&'static str> {
 }
 
 fn run_clang_command(mut cmd: Command, output_file: &str,args: &[String]) {
-    println!("[DEBUG] cmd: {:?}", cmd);
+    //println!("[DEBUG] cmd: {:?}", cmd);
     match cmd.status() {
         Ok(status) => {
             if status.success() {
@@ -244,7 +247,7 @@ fn run_clang_command(mut cmd: Command, output_file: &str,args: &[String]) {
                     "{}",
                     "Neit-2-C Converted Code compiled successfully!".green()
                 );
-                if args.contains(&"-rc".to_string()) || args.contains(&"--retian-c".to_string()) {
+                if !args.contains(&"-rc".to_string()) && !args.contains(&"--retian-c".to_string()) {
                 match fs::remove_file(format!("{}.c", output_file)) {
                     Ok(_) => {}
                     Err(e) => {

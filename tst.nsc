@@ -1,1 +1,5 @@
-println hi
+may name = takein()
+println {name}
+if (name == "joy"){
+    println Hello boss
+}

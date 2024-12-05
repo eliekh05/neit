@@ -66,6 +66,7 @@ pub fn genc(nst: &Vec<NST>, target: &str) -> String {
                 println!("{}", format!("Waiting for {} seconds...", t).cyan());
                 sleep(Duration::from_millis({ *t } * 1000));
             }
+            _ => {}
         }
     }
 

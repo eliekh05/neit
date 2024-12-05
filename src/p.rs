@@ -1,11 +1,11 @@
 use crate::{
     err::{generr, ErrT},
-    lex::{TokType, Tokens},
+    lex::{TokType, Tokens}, p2::{p2, Condition},
 };
 use colored::Colorize;
 use std::{collections::HashMap, process::exit};
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum NST {
     PRINT(String),
     Var(Var),
@@ -13,9 +13,11 @@ pub enum NST {
     Func(String, Vec<String>, Vec<NST>),
     NCLRSCRN,
     WAIT(u64),
+    NIF(Condition,Vec<NST>),
+    VarRD(String,VVal)
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub struct Var {
     pub name: String,
     pub value: VVal,
@@ -29,11 +31,10 @@ pub enum VVal {
     VarRef(String, String),
 }
 
-pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool) -> Vec<NST> {
+pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool,errors: &mut Vec<ErrT>) -> Vec<NST> {
     let mut vars: HashMap<String, VVal> = HashMap::new();
     let mut nst: Vec<NST> = Vec::new();
     let mut ln: usize = 1;
-    let mut errors: Vec<ErrT> = Vec::new();
     let mut tok_iter = toks.iter().peekable();
 
     while let Some(tok) = tok_iter.next() {
@@ -125,7 +126,7 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool) -> Vec<N
                             }
                             2 => {
                                 let vval =
-                                    parse_var_value(&var_value, ln, &mut vars, &mut errors, &nst);
+                                    parse_var_value(&var_value, ln, &mut vars, errors, &nst);
 
                                 if vval != VVal::Str("__TAKEININPUT__".to_string()) {
                                     vars.insert(var_name.clone(), vval.clone());
@@ -174,7 +175,7 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool) -> Vec<N
                 for tok in tok_iter.by_ref() {
                     if tok.get_type() == TokType::EOL {
                         //println!("[DEBUG] og wait time :~ {}", a);
-                        let time_in_ms = convert_to_ms(&a, &mut errors, ln);
+                        let time_in_ms = convert_to_ms(&a, errors, ln);
                         //println!("[DEBUG] wait for :~ {} => {} ms", a, time_in_ms);
                         nst.push(NST::WAIT(time_in_ms));
                     } else {
@@ -218,10 +219,12 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool) -> Vec<N
                         body.push(ctok.clone());
                     }
                 }
-                let func_body = parse(&body, codes, file, false);
+                let func_body = parse(&body, codes, file, false,errors);
                 nst.push(NST::Func(name, args, func_body));
             }
-            _ => {}
+            _ => {
+                p2(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars);
+            }
         }
     }
 
@@ -234,7 +237,7 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool) -> Vec<N
         );
 
         for err in errors {
-            generr(err, &codes.to_vec());
+            generr(err.clone(), &codes.to_vec());
             eprintln!("{}", "─".repeat(100).red().dimmed());
         }
         if errext {

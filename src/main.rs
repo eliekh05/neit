@@ -14,6 +14,7 @@ mod lex;
 pub mod nrunp;
 mod p;
 mod run;
+mod p2;
 
 fn main() {
 

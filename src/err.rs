@@ -1,5 +1,8 @@
 use colored::*;
 
+#[derive(Clone,Debug)]
+#[allow(unused)]
+/// Enum representing various error types that can occur during parsing.
 #[allow(unused)]
 /// Enum representing various error types that can occur during parsing.
 pub enum ErrT {
@@ -26,9 +29,43 @@ pub enum ErrT {
     /// - `usize`: Line number where the error occurred.
     /// - `String`: The code fragment where the issue was detected.
     EqNF(usize, String),
-    ///Invalid Time Value for 'wait' command
+
+    /// Invalid Time Value for 'wait' command
     InVTimeVal(usize, String),
+
+    /// Represents unmatched parentheses in the code.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    UnmatchedParen(usize, String),
+
+    /// Represents an invalid condition used in a control structure.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    /// - `String`: The invalid condition.
+    InVCond(usize, String),
+
+    /// Represents an empty condition in a control structure.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    EmptyCond(usize, String),
+
+    /// Represents an incorrect "if" statement format.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    NIF(usize, String),
+
+    /// Represents an invalid variable read operation.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    VarRD(usize, String),
+
+    /// Represents an invalid conditional operator.
+    /// Holds:
+    /// - `usize`: Line number where the error occurred.
+    InvalidCondOp(usize, String),
+    InvalidOperand(usize, String),
 }
+
 pub fn generr(err: ErrT, codes: &Vec<&str>) {
     match err {
         ErrT::InValidVarVal(line, value) => {
@@ -184,5 +221,152 @@ pub fn generr(err: ErrT, codes: &Vec<&str>) {
             );
             println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
         }
+        ErrT::UnmatchedParen(line, code) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Unmatched Parentheses".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Unmatched parentheses found in: `{}`", code).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "Ensure that all parentheses are properly paired.".bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Check for missing closing parentheses or misplaced opening parentheses."
+                    .bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        ErrT::InVCond(line, cond) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Invalid Condition".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Invalid condition: `{}`", cond).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "This error occurs when the condition used in a control structure is invalid."
+                    .bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Ensure the condition is properly formed and returns a boolean result.".bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        ErrT::EmptyCond(line, cond) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Empty Condition".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Empty condition found in: `{}`", cond).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "A control structure cannot have an empty condition.".bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Ensure that the condition is not missing or improperly formatted.".bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        ErrT::NIF(line, code) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Incorrect If Statement".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Incorrect if statement structure: `{}`", code).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "The if statement is not properly formatted.".bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Ensure the condition and body are correctly placed inside the `if` statement.".bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        ErrT::VarRD(line, code) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Variable Read Error".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Invalid variable read in: `{}`", code).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "Attempted to read from a variable in an unsupported way.".bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Ensure the variable is declared and read properly.".bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        ErrT::InvalidCondOp(line, code) => {
+            let codeline = &codes[line - 1];
+            println!("{}", "ERROR: Invalid Conditional Operator".bold().red());
+            println!(
+                " ├─ {} {}",
+                "Line:".bright_white(),
+                format!("{}", line).yellow().bold()
+            );
+            println!(
+                " ├─ {} {}",
+                "Cause:".bright_white(),
+                format!("Invalid conditional operator in: `{}`", code).yellow()
+            );
+            println!(" ├─ {}", "Explanation:".bright_white());
+            println!(
+                " │   {}",
+                "An invalid conditional operator (`==`, `!=`, `<`, `>`, etc.) was used.".bright_cyan()
+            );
+            println!(
+                " │   {}",
+                "Ensure that the operator is a valid conditional operator for comparisons.".bright_cyan()
+            );
+            println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
+        }
+        _ => {}
     }
 }
