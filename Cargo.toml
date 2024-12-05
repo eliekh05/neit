@@ -1,0 +1,21 @@
+[package]
+name = "neit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clearscreen = "3.0.0"
+colored = "2.1.0"
+enable-ansi-support = "0.2.1"
+
+[profile.release]
+# Maximize optimization level for best performance
+opt-level = "z"             
+debug = false                
+lto = "fat"                 
+panic = "abort"             
+codegen-units = 1           
+incremental = false         
+rpath = false               
+strip = "symbols"           
+overflow-checks = false

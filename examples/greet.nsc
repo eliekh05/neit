@@ -1,0 +1,8 @@
+println Hello and welcome to the greet program written in neit!
+println Please tell me your name
+print >
+may name = takein()
+println Ah hah! so your name is {name}
+println \n
+println Hello there {name}! nice to meet you , my name is neit language!
+cls
