@@ -35,14 +35,14 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
     neit -h
     ```
 
-- **`-grammar=<file>`**  
+- **`-grammar=<file>`** (**on hold right now ***NOT AVAILABLE AS COMMAND TEMP*** , we are sorry for this**)
   - Specifies a grammar file for parsing. File extension does not matter.  
   - *Example*:  
     ```bash
     neit run joy.nsc -grammar=grammar.txt
     ```
 
-- **`-opt=<level>`**  
+- **`-opt=<level>`** or `--optimisation=<level>`
   - Specifies the optimization level for code generation.  
     - **`1`** – Least optimizations for minor speed improvements.  
     - **`2`** – Moderate optimizations for a balance of speed and size.  
@@ -60,7 +60,7 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
     neit build joy.nsc -static
     ```
 
-- **`-o=<name>`**  
+- **`-o=<name>`** or `--out=<name>`
   - Specifies the output file name (default: `output`).  
   - *Example*:  
     ```bash
@@ -74,7 +74,7 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
     neit run joy.nsc -cls
     ```
 
-- **`-retain-c`**  
+- **`--retain-c`** or `-rc`
   - Retains the generated C file after building.  
   - *Example*:  
     ```bash
