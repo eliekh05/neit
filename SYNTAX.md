@@ -105,7 +105,11 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
   ```neit
   may name2 = name
   ```
-
+### **Re-Assign values to variables**
+- you can assign new values to variables in the following way:
+   ```may name = "joy" # a variable called name
+  name = "yoj" # reassign it
+  ```
 
 ### **Print Statements**
 
@@ -179,6 +183,26 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
    - ms :~ millisecond
    - m :~ minute
    - hr :~ hour
+### **Conditional Statements (Only ``if`` for now)**
+neit also supports conditional statements , but for now only supports ``if`` and can be used in the following way
+```neit
+if (cond){
+  #code
+}
+```
+for example say we wanna match if ``1 == 2`` so:
+```neit
+if (1 == 2){
+  println Nuh uh
+}
+```
+we can also match strings , neit ships with its own implementation of ``strcmp`` which is put directly into the generated code but we are writting a ``stdlib`` in C for neit called ``nelibc`` , anyways you can compare strings like usual:
+```neit
+may name = takein()
+if (name == "joy"){
+  println Hello joyyyyy!!!!
+}
+```
 
 
 ---
