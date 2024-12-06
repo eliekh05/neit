@@ -107,7 +107,7 @@ jobs:
         shell: pwsh
         run: |
           if (!(Test-Path -Path target\x86_64-pc-windows-msvc\release\neit.exe)) {
-            Write-Error "Build output not found: target\x86_64-pc-windows-msvc\release\neit.exe"
+            Write-Error "Build output not found: target\x86_64-pc-windows-msvc\release\neit.exe -DestinationPath neit_windows.zip
             exit 1
           }
 
