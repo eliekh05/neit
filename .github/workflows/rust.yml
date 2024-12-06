@@ -114,7 +114,7 @@ jobs:
       - name: Package for Release (Windows)
         shell: pwsh
         run: |
-          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\neit.exe,vc_redist.x64.exe -DestinationPath 
+          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\neit.exe 
       - name: Upload Artifact (Windows)
         uses: actions/upload-artifact@v3
         with:
