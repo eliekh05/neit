@@ -228,7 +228,7 @@ jobs:
           name: Release ${{ needs.build-linux.outputs.new_version }}
           body: |
             Release notes for ${{ needs.build-linux.outputs.new_version }}
-            Added windows, mac, linux removed source code, targets folders and integrations, kept bimble the command, changed fork and recreated from ground up, updated repo, removed readme file, added vc_redist 64Bit in neit_windows.zip file
+            Added windows, mac, linux removed source code, targets folders and integrations, kept neit the command, changed fork and recreated from ground up, updated repo, removed readme file, added vc_redist 64Bit in neit_windows.zip file
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
