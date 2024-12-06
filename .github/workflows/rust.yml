@@ -111,13 +111,6 @@ jobs:
             exit 1
           }
 
-      - name: Download vc_redist.x64.exe
-        run: Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile vc_redist.x64.exe
-
-      - name: Package for Release (Windows)
-        shell: pwsh
-        run: |
-          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\neit.exe,vc_redist.x64.exe -DestinationPath neit_windows.zip
 
       - name: Upload Artifact (Windows)
         uses: actions/upload-artifact@v3
@@ -228,7 +221,7 @@ jobs:
           name: Release ${{ needs.build-linux.outputs.new_version }}
           body: |
             Release notes for ${{ needs.build-linux.outputs.new_version }}
-            Added windows, mac, linux removed source code, targets folders and integrations, kept neit the command, changed fork and recreated from ground up, updated repo, removed readme file, added vc_redist 64Bit in neit_windows.zip file
+            Added windows, mac, linux removed source code, targets folders and integrations, kept neit the command, changed fork and recreated from ground up, updated repo, removed readme file, removed vc_redist 64Bit in neit_windows.zip file
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
