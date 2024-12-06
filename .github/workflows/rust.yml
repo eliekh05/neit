@@ -107,14 +107,14 @@ jobs:
         shell: pwsh
         run: |
           if (!(Test-Path -Path target\x86_64-pc-windows-msvc\release\neit.exe)) {
-            Write-Error "Build output not found: target\x86_64-pc-windows-msvc\release\neit.exe -DestinationPath neit_windows.zip
+            Write-Error "Build output not found: target\x86_64-pc-windows-msvc\release\neit.exe"
             exit 1
           }
 
       - name: Package for Release (Windows)
         shell: pwsh
         run: |
-          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\neit.exe 
+          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\neit.exe -DestinationPath neit_windows.zip
       - name: Upload Artifact (Windows)
         uses: actions/upload-artifact@v3
         with:
