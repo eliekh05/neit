@@ -71,6 +71,12 @@ pub fn help() {
         "-rc | --retain-c".blue().bold(),
         "Retain the generated C file after building.".green()
     );
+    println!(
+        "  {}  {}",
+        "-g=<file> | --grammar=<file>".blue().bold(),
+        "Use a custom grammar file for grammar rules".green()
+    );
+    
 
     println!("{}", "==========================".green());
 }

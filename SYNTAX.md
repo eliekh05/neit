@@ -35,7 +35,7 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
     neit -h
     ```
 
-- **`-grammar=<file>`** (**on hold right now ***NOT AVAILABLE AS COMMAND TEMP*** , we are sorry for this**)
+- **`-grammar=<file>` or `-g=<file>`**
   - Specifies a grammar file for parsing. File extension does not matter.  
   - *Example*:  
     ```bash

@@ -9,7 +9,7 @@ use std::{
 use colored::Colorize;
 
 use crate::{
-    codegen::codegen, lex::{lex, Tokens}, nulibc, p::parse
+    codegen::codegen, grm, lex::{lex, Tokens}, nulibc, p::parse
 };
 
 pub fn build(args: &[String]) {
@@ -46,7 +46,7 @@ fn build_dir(args: &[String], src: &Path) {
 fn build_file(args: &[String], src: &Path) {
     println!("{} {}", "Building file :".green(), src.display());
 
-    let code = fs::read_to_string(src).unwrap_or_else(|e| {
+    let mut code = fs::read_to_string(src).unwrap_or_else(|e| {
         eprintln!(
             "{} {}",
             "Error :~ Cannot read source file :".red(),
@@ -55,7 +55,21 @@ fn build_file(args: &[String], src: &Path) {
         eprintln!("{} {}", "Error MSG :~".red(), e.to_string().bright_red());
         exit(-1);
     });
-
+    for arg in args.iter() {
+        match arg {
+            arg if arg.starts_with("-g=") || arg.starts_with("--grammar=") => {
+                let grmf = if arg.starts_with("-g=") {
+                    arg.trim_start_matches("-g=")
+                } else {
+                    arg.trim_start_matches("--grammar=")
+                };
+                grm::pgrm(&mut code, grmf);
+                break;
+            }
+            _ => {}
+        }
+    }
+    
     println!("{}", "Lexing file...".green());
     let mut toks = Tokens::new();
     lex(&code, &mut toks);
