@@ -4,29 +4,20 @@ use std::collections::HashMap;
 
 pub static INDENTLEV: &str = "    ";
 
-pub fn codegen(nst: &mut Vec<NST>, addh: bool, generate_main: bool,addstrcmp : bool) -> String {
+pub fn codegen(nst: &mut Vec<NST>, addh: bool, generate_main: bool, addstrcmp: bool) -> String {
     let mut ccode = String::new();
     let mut vars: HashMap<String, VVal> = HashMap::new();
     let mut func_body = String::new();
     let mut added_nclrscrn = false;
-    if addstrcmp{
+    if addstrcmp {
         //println!("[DEBUG] ~ adding strmp");
-        ccode.push_str(r#"int strcmp(const char *str1, const char *str2) {
-    while (*str1 != '\0' && *str2 != '\0') {
-        if (*str1 != *str2) {
-            return (unsigned char)(*str1) - (unsigned char)(*str2);
-        }
-        str1++;
-        str2++;
-    }
-    return (unsigned char)(*str1) - (unsigned char)(*str2);
-}"#);
-ccode.push('\n');
+        ccode.push_str(r#""#);
+        ccode.push('\n');
     }
 
     if addh {
         println!("{}", "-> Adding headers".green().bold());
-        ccode.push_str("#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\n\n");
+        ccode.push_str("#include \"nulibc.h\"\n#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\n\n");
     }
 
     if nst.iter().any(|mc| matches!(mc, NST::NCLRSCRN)) {
@@ -48,7 +39,7 @@ ccode.push('\n');
                 func_body.push_str(&print_code);
             }
             NST::Func(name, _args, nsts) => {
-                let body_code = codegen(nsts, false, false,false);
+                let body_code = codegen(nsts, false, false, false);
                 ccode.push_str(&format!("void {}() {{\n", name));
                 ccode.push_str(&body_code);
                 ccode.push_str("}\n");
@@ -67,25 +58,36 @@ ccode.push('\n');
             NST::WAIT(t) => {
                 func_body.push_str(format!("usleep({}LL*1000);\n", t).as_str());
             }
-            NST::NIF(cond,code  ) => {
+            NST::NIF(cond, code) => {
                 //println!("code : {:?}",code);
-                func_body.push_str(format!("if ({}){{\n{}\n}}\n",cond.c_code,codegen(code, false, false, false)).as_str());
+                func_body.push_str(
+                    format!(
+                        "if ({}){{\n{}\n}}\n",
+                        cond.c_code,
+                        codegen(code, false, false, false)
+                    )
+                    .as_str(),
+                );
             }
-            NST::VarRD(n,v ) => {
-                match v{
-                    VVal::Str(s) => {
-                        func_body.push_str(format!("{} = {};\n", n, s).as_str());
-                    }
-                    VVal::Int(i) => {
-                        func_body.push_str(format!("{} = {};\n", n, i).as_str());
-                    }
-                    VVal::F(f) => {
-                        func_body.push_str(format!("{} = {};\n", n, f).as_str());
-                    }
-                    VVal::VarRef(n2,_v2) => {
-                        func_body.push_str(format!("{} = {};\n", n, n2).as_str());
-                    }
+            NST::VarRD(n, v) => match v {
+                VVal::Str(s) => {
+                    func_body.push_str(format!("{} = {};\n", n, s).as_str());
                 }
+                VVal::Int(i) => {
+                    func_body.push_str(format!("{} = {};\n", n, i).as_str());
+                }
+                VVal::F(f) => {
+                    func_body.push_str(format!("{} = {};\n", n, f).as_str());
+                }
+                VVal::VarRef(n2, _v2) => {
+                    func_body.push_str(format!("{} = {};\n", n, n2).as_str());
+                }
+            },
+            NST::NWHILE(cond, body) => {
+                let body = codegen(body, false, false, false);
+                func_body.push_str(&format!("while ({}) {{\n", cond.c_code));
+                func_body.push_str(&body);
+                func_body.push_str("}\n");
             }
         }
     }
@@ -104,16 +106,6 @@ ccode.push('\n');
 
 fn nclrscrn() -> String {
     r#"
-void __NCLRSCRN__() {
-    #if defined(_WIN32) || defined(_WIN64)
-        system("cls");
-    #elif defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
-        system("clear");
-    #else
-        printf("\n\n\n");
-    #endif
-    fflush(stdout);
-}
 "#
     .to_string()
 }

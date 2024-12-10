@@ -9,20 +9,21 @@ pub mod build;
 pub mod codegen;
 mod err;
 pub mod grm;
+pub mod nulibc;
 pub mod help;
 mod lex;
 pub mod nrunp;
 mod p;
-mod run;
 mod p2;
+pub mod p3;
+mod run;
 
 fn main() {
-
-    match enable_ansi_support(){
+    match enable_ansi_support() {
         Ok(_) => {}
         Err(e) => {
             eprintln!("{}","Unable to enable ansii colors support :~ ANSI Code will be visible along lines , please ignore!".bright_yellow());
-            eprintln!("{}{}","Specific Error Message :~ ",e);
+            eprintln!("{}{}", "Specific Error Message :~ ", e);
         }
     }
 

@@ -19,7 +19,7 @@ pub fn nrunp(nst: &Vec<NST>, target: &str) -> String {
     if target == "linux" || target == "windows" {
         let bc = genc(nst, target);
         println!("{}", bc);
-        
+
         str2bin(&bc)
     } else {
         String::new()

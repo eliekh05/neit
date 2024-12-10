@@ -9,7 +9,7 @@ use std::{
 use colored::Colorize;
 
 use crate::{
-    codegen::codegen, lex::{lex, Tokens}, p::parse
+    codegen::codegen, lex::{lex, Tokens}, nulibc, p::parse
 };
 
 pub fn build(args: &[String]) {
@@ -67,7 +67,7 @@ fn build_file(args: &[String], src: &Path) {
         &code.split("\n").collect::<Vec<&str>>(),
         src.display().to_string().as_str(),
         true,
-        &mut Vec::new()
+        &mut Vec::new(),
     );
     //println!("[DEBUG] nst : {:?}", nst);
 
@@ -77,7 +77,7 @@ fn build_file(args: &[String], src: &Path) {
     let output_file = parse_output(args).trim().to_string();
 
     println!("{}", "Generating code...".green());
-    let ccode = codegen(&mut nst, true,true,true);
+    let ccode = codegen(&mut nst, true, true, true);
 
     println!("{}", "Writing C code to file...".green());
     write_to_file(&ccode, &output_file);
@@ -86,7 +86,7 @@ fn build_file(args: &[String], src: &Path) {
     let cmd = build_clang_command(args, &output_file, src, opt_level);
 
     println!("{}", "Running Clang command...".green());
-    run_clang_command(cmd, &output_file,args);
+    run_clang_command(cmd, &output_file, args);
 }
 
 fn parse_target_os(args: &[String]) -> String {
@@ -166,15 +166,36 @@ fn write_to_file(ccode: &str, output_file: &str) {
 fn build_clang_command(args: &[String], output_file: &str, _src: &Path, opt_level: i32) -> Command {
     let mut cmd = Command::new("clang");
     cmd.arg(format!("{}.c", output_file));
+    let nulibcp = Path::new("nulibc.c");
+    let nulibchp = Path::new("nulibc.h");
+    match File::create(nulibcp){
+        Ok(mut f) => {
+            f.write_all(nulibc::NULIBC.as_bytes()).unwrap();
+            cmd.arg("nulibc.c");
+        }
+        Err(e) => {
+            eprintln!("{}{}","Error :~ Unable to create nulibc.c file :~ {}",e);
+            exit(1);
+        }
+    }
+    match File::create(nulibchp){
+        Ok(mut f) => {
+            f.write_all(nulibc::NULIBCH.as_bytes()).unwrap();
+        }
+        Err(e) => {
+            eprintln!("{}{}","Error :~ Unable to create nulibc.c file :~ {}",e);
+            exit(1);
+        }
+    }
     cmd.arg(format!("-o{}", output_file));
-    
+
     if args.contains(&"-static".to_string()) {
         cmd.arg("-static");
     }
-    
+
     let opt_flags = get_optimization_flags(opt_level);
     cmd.args(opt_flags);
-    
+
     //println!("[DEBUG] cmd: {:?}", cmd);
     cmd
 }
@@ -238,8 +259,9 @@ fn get_optimization_flags(level: i32) -> Vec<&'static str> {
     }
 }
 
-fn run_clang_command(mut cmd: Command, output_file: &str,args: &[String]) {
-    //println!("[DEBUG] cmd: {:?}", cmd);
+fn run_clang_command(mut cmd: Command, output_file: &str, args: &[String]) {
+   // println!("[DEBUG] cmd: {:?}", cmd);
+    
     match cmd.status() {
         Ok(status) => {
             if status.success() {
@@ -248,15 +270,31 @@ fn run_clang_command(mut cmd: Command, output_file: &str,args: &[String]) {
                     "Neit-2-C Converted Code compiled successfully!".green()
                 );
                 if !args.contains(&"-rc".to_string()) && !args.contains(&"--retian-c".to_string()) {
-                match fs::remove_file(format!("{}.c", output_file)) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("{} {}", "Error :~ Cannot remove file :".red(), output_file);
-                        eprintln!("{} {}", "Error MSG :~".red(), e.to_string().bright_red());
-                        exit(-1);
+                    match fs::remove_file(format!("{}.c", output_file)) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("{} {}", "Error :~ Cannot remove file :".red(), output_file);
+                            eprintln!("{} {}", "Error MSG :~".red(), e.to_string().bright_red());
+                            exit(-1);
+                        }
+                    }
+                    match fs::remove_file(format!("nulibc.c")) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("{}", "Error :~ Cannot remove file : nulibc.c".red());
+                            eprintln!("{} {}", "Error MSG :~".red(), e.to_string().bright_red());
+                            exit(-1);
+                        }
+                    }
+                    match fs::remove_file(format!("nulibc.h")) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("{}", "Error :~ Cannot remove file : nulibc.h".red());
+                            eprintln!("{} {}", "Error MSG :~".red(), e.to_string().bright_red());
+                            exit(-1);
+                        }
                     }
                 }
-            }
                 exit(0);
             } else {
                 eprintln!("{}", "Clang compilation failed.".red());

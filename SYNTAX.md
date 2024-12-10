@@ -183,6 +183,14 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
    - ms :~ millisecond
    - m :~ minute
    - hr :~ hour
+
+### **while loop**
+while loops works like `if` statements but they run as long as the condition meets!
+```neit
+while (cond){
+  //code
+}
+```
 ### **Conditional Statements (Only ``if`` for now)**
 neit also supports conditional statements , but for now only supports ``if`` and can be used in the following way
 ```neit
