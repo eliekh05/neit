@@ -1,5 +1,9 @@
+use crate::{
+    err::ErrT,
+    lex::{TokType, Tokens},
+    p::{parse, VVal, NST},
+};
 use std::collections::HashMap;
-use crate::{err::ErrT, lex::{TokType, Tokens}, p::{parse, VVal, NST}};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Condition {
@@ -28,75 +32,115 @@ pub fn p2(
     nst: &mut Vec<NST>,
     ln: &mut usize,
     vars: &HashMap<String, VVal>,
-    file : &str,
+    file: &str,
 ) -> bool {
     match (toks.get_type(), toks.get_value()) {
         (TokType::CMD, "if") => {
-            //println!("[DEBUG] inside if");
-            let mut if_body: Vec<Tokens> = Vec::new();
-            let mut if_condition = String::new();
+            let mut cond = String::new();
+            let mut body_tokens = Vec::new();
+            let mut in_parentheses = false;
+            let mut brace_count = 0;
 
+            // Parse condition inside parentheses
             while let Some(tok) = tok_iter.next() {
-                if tok.get_type() == TokType::OP && tok.get_value() == "(" {
-                    let mut paren_balance = 1;
-                    while let Some(inner_tok) = tok_iter.next() {
-                        match (inner_tok.get_type(), inner_tok.get_value()) {
-                            (TokType::OP, "(") => paren_balance += 1,
-                            (TokType::OP, ")") => paren_balance -= 1,
-                            _ => if_condition.push_str(inner_tok.get_value()),
-                        }
-                        if paren_balance == 0 {
-                            break;
-                        }
+                match (tok.get_type(), tok.get_value()) {
+                    (TokType::OP, "(") if !in_parentheses => {
+                        in_parentheses = true;
                     }
-                    if paren_balance != 0 {
+                    (TokType::EOL, _) => {
+                        *ln += 1;
+                    }
+                    (TokType::OP, ")") if in_parentheses => {
+                        in_parentheses = false;
+                        break; // Exit condition parsing
+                    }
+                    (TokType::SPACE, _) => {
+                        continue; // Ignore spaces inside condition
+                    }
+                    (_, _) if in_parentheses => {
+                        cond.push_str(tok.get_value());
+                    }
+                    _ => {
+                        
                         errors.push(ErrT::UnmatchedParen(*ln, codes[*ln].to_string()));
-                        //return true;
-                    }
-                    //return true;
-                }
-
-                if tok.get_type() == TokType::OP && tok.get_value() == "{" {
-                    let mut brace_balance = 1;
-                    while let Some(inner_tok) = tok_iter.next() {
-                        if inner_tok.get_type() == TokType::OP {
-                            if inner_tok.get_value() == "{" {
-                                brace_balance += 1;
-                            } else if inner_tok.get_value() == "}" {
-                                brace_balance -= 1;
-                            }
-                        }
-                        if inner_tok.get_type() == TokType::EOL {
-                            *ln += 1;
-                        }
-                        if brace_balance == 0 {
-                            break;
-                        }
-                        if_body.push(inner_tok.clone());
-                    }
-                    if brace_balance != 0 {
-                        errors.push(ErrT::InVCond(*ln, "Unmatched braces in if body".to_string()));
-                        //return true;
+                        return true;
                     }
                 }
             }
-            //println!("[DEBUG] if condition : {}", if_condition);
 
-
-            if if_condition.is_empty() {
+            // Check for unmatched or empty condition
+            if in_parentheses {
+                
+                errors.push(ErrT::UnmatchedParen(*ln, codes[*ln].to_string()));
+                return true;
+            }
+            if cond.is_empty() {
                 errors.push(ErrT::EmptyCond(*ln, codes[*ln].to_string()));
                 return true;
             }
-            if let Some(parsed_condition) = parse_condition(&if_condition, *ln, errors, vars,&nst) {
-                //println!("[DEBUG] parsed condition : {:?}", parsed_condition);
-               // println!("[DEBUG] if body : {:?}", if_body);
-                let parsed_body = parse(&if_body, codes, file, false, errors);
-                //println!("[DEBUG] parsed body : {:?}", parsed_body);
-                nst.push(NST::NIF(parsed_condition, parsed_body));
+
+            // Parse the condition
+            let cond_parsed = parse_condition(&cond, *ln, errors, vars, nst);
+            let condition = match cond_parsed {
+                Some(cond) => cond,
+                None => {
+                    errors.push(ErrT::InVCond(*ln, cond.clone()));
+                    return true;
+                }
+            };
+
+            // Parse body inside braces with brace counting
+            while let Some(tok) = tok_iter.next() {
+                match (tok.get_type(), tok.get_value()) {
+                    (TokType::OP, "{") => {
+                        brace_count += 1; // Increment brace count
+                        if brace_count == 1 {
+                            continue; // Skip the first `{` to start body parsing
+                        }
+                    }
+                    (TokType::OP, "}") => {
+                        brace_count -= 1; // Decrement brace count
+                        if brace_count == 0 {
+                            break; // Exit body parsing
+                        }
+                    }
+                    (_, _) if brace_count > 0 => {
+                        body_tokens.push(tok.clone());
+                    }
+                    _ => {}
+                }
             }
+
+            // Check for unmatched braces
+            if brace_count != 0 {
+                errors.push(ErrT::UnmatchedParen(
+                    *ln,
+                    "Unmatched braces in while loop".to_string(),
+                ));
+                return true;
+            }
+
+            // Check for empty body
+            if body_tokens.is_empty() {
+                errors.push(ErrT::InVCond(*ln, "Empty body for while loop".to_string()));
+                return true;
+            }
+
+            // Parse the body tokens
+            let body = parse(&body_tokens, codes, file, false, errors);
+            nst.push(NST::NIF(condition, body));
             return true;
         }
-        (TokType::CMD, v) if (v != "print" && v != "println" && v != "cls" && v != "wait" && v != "may" && v != "cmd" && v != "while" && v != "if") => {
+        (TokType::CMD, v)
+            if (v != "print"
+                && v != "println"
+                && v != "cls"
+                && v != "wait"
+                && v != "may"
+                && v != "cmd"
+                && v != "while"
+                && v != "if") =>
+        {
             let mut isvrd = false;
             let mut collected_value = String::new();
 
@@ -123,7 +167,7 @@ pub fn p2(
                                 errors.push(ErrT::InValidVarVal(*ln, var_value.clone()));
                                 VVal::Str(var_value.clone())
                             };
-                            
+
                             let mut found = false;
                             for i in &mut *nst {
                                 if let NST::Input(n) = i {
@@ -138,13 +182,12 @@ pub fn p2(
                                 errors.push(ErrT::InValidVarVal(*ln, var_value.clone()));
                                 return true;
                             }
-                            
+
                             nst.push(NST::VarRD(var_name.to_string(), vv));
                         } else {
                             errors.push(ErrT::InValidVarVal(*ln, var_value.clone()));
                             break;
                         }
-                        
                     }
                 } else if tok.get_type() == TokType::OP && tok.get_value() == "=" {
                     isvrd = true;
@@ -166,7 +209,7 @@ pub fn parse_condition(
     line_number: usize,
     errors: &mut Vec<ErrT>,
     vars: &HashMap<String, VVal>,
-    nst: &Vec<NST>
+    nst: &Vec<NST>,
 ) -> Option<Condition> {
     let mut index = 0;
     let mut operand_stack = Vec::new();
@@ -176,10 +219,11 @@ pub fn parse_condition(
     while index < condition.len() {
         let c = condition.chars().nth(index).unwrap();
         match c {
-            ' ' => index += 1,
             '(' => {
                 index += 1;
-                if let Some(nested_condition) = parse_condition(&condition[index..], line_number, errors, vars, nst) {
+                if let Some(nested_condition) =
+                    parse_condition(&condition[index..], line_number, errors, vars, nst)
+                {
                     operand_stack.push(format!("({})", nested_condition.c_code));
                 }
             }
@@ -188,15 +232,30 @@ pub fn parse_condition(
                 break;
             }
             '0'..='9' | '"' | '\'' | 'a'..='z' | 'A'..='Z' | '_' => {
-                if let Some(operand) = parse_operand_char_by_char(&condition, &mut index, line_number, errors, vars, nst) {
+                if let Some(operand) = parse_operand_char_by_char(
+                    &condition,
+                    &mut index,
+                    line_number,
+                    errors,
+                    vars,
+                    nst,
+                ) {
                     operand_stack.push(operand);
                 }
             }
             '&' | '|' | '=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' => {
-                if let Some(operator) = parse_operator_char_by_char(&condition, &mut index, line_number, errors) {
+                if let Some(operator) =
+                    parse_operator_char_by_char(&condition, &mut index, line_number, errors)
+                {
                     while let Some(top_operator) = operator_stack.last() {
                         if has_higher_precedence(top_operator, &operator) {
-                            apply_operator(&mut operand_stack, operator_stack.pop().unwrap(), line_number, errors,vars)?;
+                            apply_operator(
+                                &mut operand_stack,
+                                operator_stack.pop().unwrap(),
+                                line_number,
+                                errors,
+                                vars,
+                            )?;
                         } else {
                             break;
                         }
@@ -205,14 +264,17 @@ pub fn parse_condition(
                 }
             }
             _ => {
-                errors.push(ErrT::InvalidCondOp(line_number, format!("Unexpected character: `{}`", c)));
+                errors.push(ErrT::InvalidCondOp(
+                    line_number,
+                    format!("Unexpected character: `{}`", c),
+                ));
                 return None;
             }
         }
     }
 
     while let Some(operator) = operator_stack.pop() {
-        apply_operator(&mut operand_stack, operator, line_number, errors,vars)?;
+        apply_operator(&mut operand_stack, operator, line_number, errors, vars)?;
     }
 
     if operand_stack.len() == 1 {
@@ -228,17 +290,19 @@ pub fn parse_condition(
         });
     }
 
-    errors.push(ErrT::InvalidCondOp(line_number, "Invalid condition structure.".to_string()));
+    errors.push(ErrT::InvalidCondOp(
+        line_number,
+        "Invalid condition structure.".to_string(),
+    ));
     None
 }
-
 fn parse_operand_char_by_char(
     condition: &str,
     index: &mut usize,
     line_number: usize,
     errors: &mut Vec<ErrT>,
     vars: &HashMap<String, VVal>,
-    nst: &Vec<NST>
+    nst: &Vec<NST>,
 ) -> Option<String> {
     let mut buffer = String::new();
     while *index < condition.len() {
@@ -256,7 +320,10 @@ fn parse_operand_char_by_char(
     match value_type {
         ValueType::Str | ValueType::Int | ValueType::Float => Some(buffer),
         _ => {
-            errors.push(ErrT::InVCond(line_number, format!("Invalid operand: {}", buffer)));
+            errors.push(ErrT::InVCond(
+                line_number,
+                format!("Invalid operand: {}", buffer),
+            ));
             None
         }
     }
@@ -283,7 +350,10 @@ fn parse_operator_char_by_char(
     if ["==", "!=", "<", ">", "<=", ">=", "&&", "||"].contains(&operator.as_str()) {
         Some(operator)
     } else {
-        errors.push(ErrT::InvalidCondOp(line_number, format!("Invalid operator: `{}`", operator)));
+        errors.push(ErrT::InvalidCondOp(
+            line_number,
+            format!("Invalid operator: `{}`", operator),
+        ));
         None
     }
 }
@@ -306,37 +376,45 @@ fn apply_operator(
     operator: String,
     line_number: usize,
     errors: &mut Vec<ErrT>,
-    vars: &HashMap<String, VVal>
+    vars: &HashMap<String, VVal>,
 ) -> Option<()> {
     if operand_stack.len() < 2 {
-        errors.push(ErrT::InvalidCondOp(line_number, "Not enough operands for operator.".to_string()));
+        errors.push(ErrT::InvalidCondOp(
+            line_number,
+            "Not enough operands for operator.".to_string(),
+        ));
         return None;
     }
 
     let right = operand_stack.pop().unwrap();
     let left = operand_stack.pop().unwrap();
-    let combined = if (operator == "==" || operator == "!=") && (
-        (left.starts_with('"') && left.ends_with('"')) // String literal check for left operand
+    let combined = if (operator == "==" || operator == "!=")
+        && (
+            (left.starts_with('"') && left.ends_with('"')) // String literal check for left operand
             || (right.starts_with('"') && right.ends_with('"')) // String literal check for right operand
             || vars.get(&left).map_or(false, |v| matches!(v, VVal::Str(_))) // Check if left is a variable of type Str
-            || vars.get(&right).map_or(false, |v| matches!(v, VVal::Str(_))) // Check if right is a variable of type Str
-    ) {
-        format!("strcmp({}, {}) {} 0", left, right, if operator == "==" { "==" } else { "!=" })
+            || vars.get(&right).map_or(false, |v| matches!(v, VVal::Str(_)))
+            // Check if right is a variable of type Str
+        ) {
+        format!(
+            "strcmp({}, {}) {} 0",
+            left,
+            right,
+            if operator == "==" { "==" } else { "!=" }
+        )
     } else {
         format!("{} {} {}", left, operator, right)
     };
 
-
     operand_stack.push(combined);
     Some(())
 }
-
 fn determine_value_type(
     expr: &str,
     vars: &HashMap<String, VVal>,
     errors: &mut Vec<ErrT>,
     line_number: usize,
-    nst: &Vec<NST>
+    nst: &Vec<NST>,
 ) -> Option<ValueType> {
     if expr.starts_with('"') || expr.starts_with('\'') {
         return Some(ValueType::Str);

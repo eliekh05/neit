@@ -56,10 +56,7 @@ pub fn codegen(nst: &mut Vec<NST>, addh: bool, generate_main: bool, addstrcmp: b
                 vars.insert(v.to_string(), VVal::Str(String::from("")));
             }
             NST::VRDInput(v) => {
-                func_body.push_str(&format!(
-                    "   scanf(\"%2047[^\\n]\", {});\n",
-                    v
-                ));
+                func_body.push_str(&format!("   scanf(\"%2047[^\\n]\", {});\n", v));
                 vars.insert(v.to_string(), VVal::Str(String::from("")));
             }
             NST::WAIT(t) => {

@@ -76,7 +76,6 @@ pub fn help() {
         "-g=<file> | --grammar=<file>".blue().bold(),
         "Use a custom grammar file for grammar rules".green()
     );
-    
 
     println!("{}", "==========================".green());
 }

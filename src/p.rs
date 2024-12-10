@@ -1,7 +1,7 @@
 use crate::{
     err::{generr, ErrT},
     lex::{TokType, Tokens},
-    p2::{p2, Condition},
+    p2::{p2, Condition}, p3::p3,
 };
 use colored::Colorize;
 use std::{collections::HashMap, process::exit};
@@ -231,16 +231,10 @@ pub fn parse(
                 nst.push(NST::Func(name, args, func_body));
             }
             _ => {
-                if !p2(
-                    tok,
-                    &mut tok_iter,
-                    codes,
-                    errors,
-                    &mut nst,
-                    &mut ln,
-                    &vars,
-                    file,
-                ) {}
+                let b = p2(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars, file);
+                if !b{
+                    p3(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars, file);
+                }
             }
         }
     }

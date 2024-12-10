@@ -9,7 +9,11 @@ use std::{
 use colored::Colorize;
 
 use crate::{
-    codegen::codegen, grm, lex::{lex, Tokens}, nulibc, p::parse
+    codegen::codegen,
+    grm,
+    lex::{lex, Tokens},
+    nulibc,
+    p::parse,
 };
 
 pub fn build(args: &[String]) {
@@ -69,7 +73,7 @@ fn build_file(args: &[String], src: &Path) {
             _ => {}
         }
     }
-    
+
     println!("{}", "Lexing file...".green());
     let mut toks = Tokens::new();
     lex(&code, &mut toks);
@@ -182,22 +186,22 @@ fn build_clang_command(args: &[String], output_file: &str, _src: &Path, opt_leve
     cmd.arg(format!("{}.c", output_file));
     let nulibcp = Path::new("nulibc.c");
     let nulibchp = Path::new("nulibc.h");
-    match File::create(nulibcp){
+    match File::create(nulibcp) {
         Ok(mut f) => {
             f.write_all(nulibc::NULIBC.as_bytes()).unwrap();
             cmd.arg("nulibc.c");
         }
         Err(e) => {
-            eprintln!("{}{}","Error :~ Unable to create nulibc.c file :~ {}",e);
+            eprintln!("{}{}", "Error :~ Unable to create nulibc.c file :~ {}", e);
             exit(1);
         }
     }
-    match File::create(nulibchp){
+    match File::create(nulibchp) {
         Ok(mut f) => {
             f.write_all(nulibc::NULIBCH.as_bytes()).unwrap();
         }
         Err(e) => {
-            eprintln!("{}{}","Error :~ Unable to create nulibc.c file :~ {}",e);
+            eprintln!("{}{}", "Error :~ Unable to create nulibc.c file :~ {}", e);
             exit(1);
         }
     }
@@ -274,8 +278,8 @@ fn get_optimization_flags(level: i32) -> Vec<&'static str> {
 }
 
 fn run_clang_command(mut cmd: Command, output_file: &str, args: &[String]) {
-   // println!("[DEBUG] cmd: {:?}", cmd);
-    
+    // println!("[DEBUG] cmd: {:?}", cmd);
+
     match cmd.status() {
         Ok(status) => {
             if status.success() {

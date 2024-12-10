@@ -1,5 +1,7 @@
-may n = "joy"
-n = takein()
-if (n == "joy"){
-    println Hello joyyyyy!!!!
+if ("joy" == "joy" || 1 ==1) {
+    println hi
+}
+
+if ("joy" == "joy" || 1 ==1) {
+    println hi
 }

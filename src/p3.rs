@@ -30,7 +30,7 @@ pub fn p3(
                     (TokType::OP, "(") if !in_parentheses => {
                         in_parentheses = true;
                     }
-                    (TokType::EOL,_) => {
+                    (TokType::EOL, _) => {
                         *ln += 1;
                     }
                     (TokType::OP, ")") if in_parentheses => {
@@ -44,6 +44,8 @@ pub fn p3(
                         cond.push_str(tok.get_value());
                     }
                     _ => {
+                        println!("unmatched paren\n\n\n");
+
                         errors.push(ErrT::UnmatchedParen(*ln, codes[*ln].to_string()));
                         return;
                     }
@@ -52,6 +54,7 @@ pub fn p3(
 
             // Check for unmatched or empty condition
             if in_parentheses {
+                
                 errors.push(ErrT::UnmatchedParen(*ln, codes[*ln].to_string()));
                 return;
             }
@@ -69,17 +72,18 @@ pub fn p3(
                     return;
                 }
             };
-
             // Parse body inside braces with brace counting
             while let Some(tok) = tokiter.next() {
                 match (tok.get_type(), tok.get_value()) {
                     (TokType::OP, "{") => {
+                        println!("brace count : {}",brace_count);
                         brace_count += 1; // Increment brace count
                         if brace_count == 1 {
                             continue; // Skip the first `{` to start body parsing
                         }
                     }
                     (TokType::OP, "}") => {
+                        println!("brace count : {}",brace_count);
                         brace_count -= 1; // Decrement brace count
                         if brace_count == 0 {
                             break; // Exit body parsing
@@ -89,15 +93,19 @@ pub fn p3(
                         body_tokens.push(tok.clone());
                     }
                     _ => {
-                        errors.push(ErrT::UnmatchedParen(*ln, codes[*ln].to_string()));
-                        return;
                     }
                 }
             }
 
             // Check for unmatched braces
             if brace_count != 0 {
-                errors.push(ErrT::UnmatchedParen(*ln, "Unmatched braces in while loop".to_string()));
+                println!("unmatched paren");
+
+                println!("braces : {}",brace_count);
+                errors.push(ErrT::UnmatchedParen(
+                    *ln,
+                    "Unmatched braces in while loop".to_string(),
+                ));
                 return;
             }
 
