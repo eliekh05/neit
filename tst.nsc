@@ -1,0 +1,5 @@
+may n = "joy"
+n = takein()
+if (n == "joy"){
+    println Hello joyyyyy!!!!
+}

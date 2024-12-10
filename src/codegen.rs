@@ -55,6 +55,13 @@ pub fn codegen(nst: &mut Vec<NST>, addh: bool, generate_main: bool, addstrcmp: b
                 ));
                 vars.insert(v.to_string(), VVal::Str(String::from("")));
             }
+            NST::VRDInput(v) => {
+                func_body.push_str(&format!(
+                    "   scanf(\"%2047[^\\n]\", {});\n",
+                    v
+                ));
+                vars.insert(v.to_string(), VVal::Str(String::from("")));
+            }
             NST::WAIT(t) => {
                 func_body.push_str(format!("usleep({}LL*1000);\n", t).as_str());
             }
@@ -173,7 +180,7 @@ fn generate_print_code(txt: &str, vars: &HashMap<String, VVal>) -> String {
 fn generate_var_code(v: &Var) -> String {
     match &v.value {
         VVal::Str(s) => {
-            format!("    const char *{} = \"{}\";\n", v.name, s)
+            format!("    char {}[2048] = \"{}\";\n", v.name, s)
         }
         VVal::Int(i) => format!("    int {} = {};\n", v.name, i),
         VVal::F(f) => format!("    float {} = {};\n", v.name, f),

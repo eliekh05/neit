@@ -1,7 +1,7 @@
 use crate::{
     err::{generr, ErrT},
     lex::{TokType, Tokens},
-    p2::{p2, Condition}, p3::p3,
+    p2::{p2, Condition},
 };
 use colored::Colorize;
 use std::{collections::HashMap, process::exit};
@@ -11,6 +11,7 @@ pub enum NST {
     PRINT(String),
     Var(Var),
     Input(String),
+    VRDInput(String),
     Func(String, Vec<String>, Vec<NST>),
     NCLRSCRN,
     WAIT(u64),
@@ -57,14 +58,12 @@ pub fn parse(
 
                 for pptok in tok_iter.by_ref() {
                     if pptok.get_type() != TokType::EOL {
-
                         if pptok.get_value() == " " && !first_space_skipped {
                             first_space_skipped = true;
                             continue;
                         }
                         tp.push_str(pptok.get_value());
                     } else {
-                        ln += 1;
                         break;
                     }
                 }
@@ -104,7 +103,6 @@ pub fn parse(
             }
             (TokType::CMD, "cls") => {
                 nst.push(NST::NCLRSCRN);
-                ln += 1;
             }
             (TokType::CMD, "may") => {
                 let mut var_name = String::new();
@@ -153,7 +151,6 @@ pub fn parse(
                         }
                     }
                 }
-                ln += 1;
             }
             (TokType::CMD, "wait") => {
                 fn convert_to_ms(time_str: &str, errors: &mut Vec<ErrT>, line: usize) -> u64 {
@@ -185,7 +182,6 @@ pub fn parse(
                 let mut a = String::new();
                 for tok in tok_iter.by_ref() {
                     if tok.get_type() == TokType::EOL {
-                        ln += 1;
                         //println!("[DEBUG] og wait time :~ {}", a);
                         let time_in_ms = convert_to_ms(&a, errors, ln);
                         //println!("[DEBUG] wait for :~ {} => {} ms", a, time_in_ms);
@@ -204,7 +200,6 @@ pub fn parse(
                 for ctok in tok_iter.by_ref() {
                     println!("bc : {} | tok : {:?}", bc, ctok);
                     if ctok.get_type() == TokType::EOL {
-                        ln += 1;
                         continue;
                     }
                     if bc == 0 {
@@ -245,9 +240,7 @@ pub fn parse(
                     &mut ln,
                     &vars,
                     file,
-                ) {
-                    p3(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars, file);
-                }
+                ) {}
             }
         }
     }
@@ -279,65 +272,23 @@ fn parse_var_value(
     errors: &mut Vec<ErrT>,
     nst: &Vec<NST>,
 ) -> VVal {
-    let trimmed = var_value.trim();
-
-    // Check for complex expressions (e.g., "op + 1", "1 + 1")
-    if let Some((left, operator, right)) = parse_expression(trimmed) {
-        // Parse left and right operands
-        let left_val = parse_var_value(left, ln, vars, errors, nst);
-        let right_val = parse_var_value(right, ln, vars, errors, nst);
-
-        // Perform type checking
-        match (&left_val, &right_val) {
-            (VVal::Int(_), VVal::Int(_)) | (VVal::F(_), VVal::F(_)) => {
-                // Both operands are numeric, valid operation
-                return match operator {
-                    "+" | "-" | "*" | "/" => combine_numeric_operands(left_val, right_val, operator),
-                    _ => {
-                        errors.push(ErrT::InvalidCondOp(ln, operator.to_string()));
-                        VVal::Str("ERR_INVALID_OPERATOR".to_string())
-                    }
-                };
-            }
-            (VVal::Str(_), VVal::Str(_)) if operator == "+" => {
-                // String concatenation (only "+" is allowed for strings)
-                if let (VVal::Str(l), VVal::Str(r)) = (left_val, right_val) {
-                    VVal::Str(format!("{}{}", l, r));
-                } else {
-                    unreachable!()
-                }
-            }
-            _ => {
-                // Type mismatch error
-                errors.push(ErrT::InvalidOperand(
-                    ln,
-                    format!(
-                        "Cannot apply operator `{}` between `{}` and `{}`",
-                        operator, left_val.type_as_str(), right_val.type_as_str()
-                    ),
-                ));
-                VVal::Str("ERR_TYPE_MISMATCH".to_string());
-            }
-        }
-    }
-
-    // Handle simple values (not expressions)
-    if (trimmed.starts_with('"') && trimmed.ends_with('"'))
-        || (trimmed.starts_with("'") && trimmed.ends_with("'"))
+    if (var_value.starts_with('"') && var_value.ends_with('"'))
+        || (var_value.starts_with("'") && var_value.ends_with("'"))
     {
-        let value = trimmed
+        let value = var_value
+            .trim()
             .trim_start_matches('"')
             .trim_start_matches("'")
             .trim_end_matches('"')
             .trim_end_matches("'");
         VVal::Str(value.to_string())
-    } else if let Ok(val) = trimmed.parse::<i32>() {
+    } else if let Ok(val) = var_value.parse::<i32>() {
         VVal::Int(val)
-    } else if let Ok(val) = trimmed.parse::<f32>() {
+    } else if let Ok(val) = var_value.parse::<f32>() {
         VVal::F(val)
-    } else if let Some(v) = vars.get(trimmed) {
+    } else if let Some(v) = vars.get(var_value) {
         VVal::VarRef(
-            trimmed.to_string(),
+            var_value.to_string(),
             match v {
                 VVal::Int(_) => "i".to_string(),
                 VVal::F(_) => "f".to_string(),
@@ -347,53 +298,13 @@ fn parse_var_value(
         )
     } else if nst
         .iter()
-        .any(|x| matches!(x, NST::Input(n) if *n == trimmed))
+        .any(|x| matches!(x, NST::Input(n) if *n == var_value))
     {
         VVal::VarRef("".to_string(), "s".to_string())
-    } else if trimmed == "takein()" {
+    } else if var_value == "takein()" {
         VVal::Str("__TAKEININPUT__".to_string())
     } else {
-        errors.push(ErrT::InValidVarVal(ln, trimmed.to_string()));
+        errors.push(ErrT::InValidVarVal(ln, var_value.to_string()));
         VVal::Str("ERR_VAR_NOT_FOUND___!".to_string())
-    }
-}
-fn parse_expression(input: &str) -> Option<(&str, &str, &str)> {
-    let operators = ["+", "-", "*", "/"];
-    for operator in operators {
-        if let Some(pos) = input.find(operator) {
-            let left = &input[..pos].trim();
-            let right = &input[pos + operator.len()..].trim();
-            return Some((left, operator, right));
-        }
-    }
-    None
-}
-fn combine_numeric_operands(left: VVal, right: VVal, operator: &str) -> VVal {
-    match (left, right) {
-        (VVal::Int(l), VVal::Int(r)) => match operator {
-            "+" => VVal::Int(l + r),
-            "-" => VVal::Int(l - r),
-            "*" => VVal::Int(l * r),
-            "/" => VVal::Int(l / r),
-            _ => unreachable!(),
-        },
-        (VVal::F(l), VVal::F(r)) => match operator {
-            "+" => VVal::F(l + r),
-            "-" => VVal::F(l - r),
-            "*" => VVal::F(l * r),
-            "/" => VVal::F(l / r),
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
-    }
-}
-impl VVal {
-    fn type_as_str(&self) -> &str {
-        match self {
-            VVal::Int(_) => "int",
-            VVal::F(_) => "float",
-            VVal::Str(_) => "string",
-            VVal::VarRef(_, t) => t.as_str(),
-        }
     }
 }
