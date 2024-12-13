@@ -35,7 +35,7 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
     neit -h
     ```
 
-- **`-grammar=<file>`** (**on hold right now ***NOT AVAILABLE AS COMMAND TEMP*** , we are sorry for this**)
+- **`-grammar=<file>` or `-g=<file>`**
   - Specifies a grammar file for parsing. File extension does not matter.  
   - *Example*:  
     ```bash
@@ -183,6 +183,14 @@ Neit provides a set of easy-to-use command-line arguments for efficient developm
    - ms :~ millisecond
    - m :~ minute
    - hr :~ hour
+
+### **while loop**
+while loops works like `if` statements but they run as long as the condition meets!
+```neit
+while (cond){
+  //code
+}
+```
 ### **Conditional Statements (Only ``if`` for now)**
 neit also supports conditional statements , but for now only supports ``if`` and can be used in the following way
 ```neit

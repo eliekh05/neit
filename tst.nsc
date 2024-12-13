@@ -1,5 +1,7 @@
-may name = takein()
-println {name}
-if (name == "joy"){
-    println Hello boss
+if ("joy" == "joy" || 1 ==1) {
+    println hi
+}
+
+if ("joy" == "joy" || 1 ==1) {
+    println hi
 }

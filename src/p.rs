@@ -1,23 +1,26 @@
 use crate::{
     err::{generr, ErrT},
-    lex::{TokType, Tokens}, p2::{p2, Condition},
+    lex::{TokType, Tokens},
+    p2::{p2, Condition}, p3::p3,
 };
 use colored::Colorize;
 use std::{collections::HashMap, process::exit};
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum NST {
     PRINT(String),
     Var(Var),
     Input(String),
+    VRDInput(String),
     Func(String, Vec<String>, Vec<NST>),
     NCLRSCRN,
     WAIT(u64),
-    NIF(Condition,Vec<NST>),
-    VarRD(String,VVal)
+    NIF(Condition, Vec<NST>),
+    VarRD(String, VVal),
+    NWHILE(Condition, Vec<NST>),
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Var {
     pub name: String,
     pub value: VVal,
@@ -31,7 +34,13 @@ pub enum VVal {
     VarRef(String, String),
 }
 
-pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool,errors: &mut Vec<ErrT>) -> Vec<NST> {
+pub fn parse(
+    toks: &[Tokens],
+    codes: &[&str],
+    file: &str,
+    errext: bool,
+    errors: &mut Vec<ErrT>,
+) -> Vec<NST> {
     let mut vars: HashMap<String, VVal> = HashMap::new();
     let mut nst: Vec<NST> = Vec::new();
     let mut ln: usize = 1;
@@ -125,8 +134,7 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool,errors: &
                                 var_value.push_str(vtok.get_value());
                             }
                             2 => {
-                                let vval =
-                                    parse_var_value(&var_value, ln, &mut vars, errors, &nst);
+                                let vval = parse_var_value(&var_value, ln, &mut vars, errors, &nst);
 
                                 if vval != VVal::Str("__TAKEININPUT__".to_string()) {
                                     vars.insert(var_name.clone(), vval.clone());
@@ -219,11 +227,14 @@ pub fn parse(toks: &[Tokens], codes: &[&str], file: &str, errext: bool,errors: &
                         body.push(ctok.clone());
                     }
                 }
-                let func_body = parse(&body, codes, file, false,errors);
+                let func_body = parse(&body, codes, file, false, errors);
                 nst.push(NST::Func(name, args, func_body));
             }
             _ => {
-                p2(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars);
+                let b = p2(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars, file);
+                if !b{
+                    p3(tok, &mut tok_iter, codes, errors, &mut nst, &mut ln, &vars, file);
+                }
             }
         }
     }

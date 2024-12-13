@@ -1,6 +1,6 @@
 use colored::*;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 #[allow(unused)]
 /// Enum representing various error types that can occur during parsing.
 #[allow(unused)]
@@ -267,7 +267,8 @@ pub fn generr(err: ErrT, codes: &Vec<&str>) {
             );
             println!(
                 " │   {}",
-                "Ensure the condition is properly formed and returns a boolean result.".bright_cyan()
+                "Ensure the condition is properly formed and returns a boolean result."
+                    .bright_cyan()
             );
             println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
         }
@@ -315,7 +316,8 @@ pub fn generr(err: ErrT, codes: &Vec<&str>) {
             );
             println!(
                 " │   {}",
-                "Ensure the condition and body are correctly placed inside the `if` statement.".bright_cyan()
+                "Ensure the condition and body are correctly placed inside the `if` statement."
+                    .bright_cyan()
             );
             println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
         }
@@ -359,11 +361,13 @@ pub fn generr(err: ErrT, codes: &Vec<&str>) {
             println!(" ├─ {}", "Explanation:".bright_white());
             println!(
                 " │   {}",
-                "An invalid conditional operator (`==`, `!=`, `<`, `>`, etc.) was used.".bright_cyan()
+                "An invalid conditional operator (`==`, `!=`, `<`, `>`, etc.) was used."
+                    .bright_cyan()
             );
             println!(
                 " │   {}",
-                "Ensure that the operator is a valid conditional operator for comparisons.".bright_cyan()
+                "Ensure that the operator is a valid conditional operator for comparisons."
+                    .bright_cyan()
             );
             println!(" └─ {} {}", "Code:".bright_white(), codeline.red().italic());
         }
